@@ -159,6 +159,11 @@ button.item:hover{background:var(--soft);border-radius:8px}
 .item .am small{display:block;font-weight:500;color:var(--muted);font-size:12px}
 .irow{display:flex;align-items:center;gap:8px;border-bottom:1px solid var(--line)}.irow:last-child{border-bottom:0}.irow .item{border-bottom:0;flex:1;min-width:0}
 .note{align-items:center}
+.sideuser{display:flex;align-items:center;gap:10px;padding:8px 12px;font-weight:600;font-size:14px;min-width:0}.sideuser span:last-child{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.av{border-radius:50%;background:var(--brand);color:#fff;display:grid;place-items:center;font-weight:800;flex:none;overflow:hidden;line-height:1}.av img{width:100%;height:100%;object-fit:cover}
+.avgrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:8px;margin-top:10px;max-height:300px;overflow:auto;padding:2px}
+.avjob{display:flex;flex-wrap:wrap;gap:6px;align-items:center;border:1px solid var(--line);border-radius:12px;padding:8px}.avjob small{flex:1 1 100%;font-size:12px;color:var(--muted);line-height:1.3}
+.avpick{width:48px;height:48px;border-radius:50%;border:3px solid transparent;font-size:26px;padding:0;display:grid;place-items:center}.avpick.on{border-color:var(--ink);box-shadow:0 0 0 2px var(--card) inset}
+.avc{width:30px;height:30px;border-radius:50%;border:3px solid transparent;padding:0}.avc.on{border-color:var(--ink)}
 .dayhead{display:flex;justify-content:space-between;font-size:12.5px;font-weight:700;color:var(--muted);padding:14px 4px 4px;text-transform:uppercase;letter-spacing:.03em}
 .empty{text-align:center;color:var(--muted);padding:26px 10px}
 .filters{display:flex;gap:8px;flex-wrap:wrap}
@@ -377,6 +382,68 @@ function put(t, rec, quiet) {
   if (!quiet) { save(); scheduleSync(); }
 }
 function remove(t, id) { const r = S[t].find(x => x.id === id); if (r) put(t, Object.assign({}, r, { deleted: 1 })); }
+/* Avatar theo nghề nghiệp phổ biến ở Việt Nam (emoji có sẵn, không cần tải hình) */
+const AVATARS = [
+  ['👨‍💼','👩‍💼','Nhân viên văn phòng, kế toán, quản lý'],['👨‍💻','👩‍💻','Lập trình viên, IT, kỹ sư phần mềm'],
+  ['👨‍🔧','👩‍🔧','Kỹ thuật viên, thợ sửa chữa, kỹ sư điện'],['👨‍🏭','👩‍🏭','Công nhân nhà máy, sản xuất'],
+  ['👷‍♂️','👷‍♀️','Công nhân xây dựng, kỹ sư công trình'],['👨‍🏫','👩‍🏫','Giáo viên, giảng viên'],
+  ['👨‍⚕️','👩‍⚕️','Bác sĩ, y tá, dược sĩ'],['👨‍🎓','👩‍🎓','Sinh viên, học sinh'],
+  ['👨‍🍳','👩‍🍳','Đầu bếp, chủ quán ăn'],['👨‍🌾','👩‍🌾','Nông dân, làm vườn, chăn nuôi'],
+  ['👮‍♂️','👮‍♀️','Công an, cảnh sát'],['💂‍♂️','💂‍♀️','Bộ đội, bảo vệ'],
+  ['👨‍⚖️','👩‍⚖️','Luật sư, thẩm phán'],['👨‍🔬','👩‍🔬','Nhà khoa học, nghiên cứu, phòng thí nghiệm'],
+  ['👨‍🎨','👩‍🎨','Họa sĩ, thiết kế đồ họa'],['👨‍🎤','👩‍🎤','Ca sĩ, nghệ sĩ, MC'],
+  ['👨‍✈️','👩‍✈️','Phi công, tiếp viên, hàng không'],['👨‍🚒','👩‍🚒','Lính cứu hỏa'],
+  ['🧑‍🚀','👩‍🚀','Phi hành gia'],['🕵️‍♂️','🕵️‍♀️','Thám tử, điều tra'],
+  ['🧔','👩','Kinh doanh, buôn bán tự do'],['👨‍🦳','👵','Hưu trí'],
+  ['💇‍♂️','💇‍♀️','Thợ cắt tóc, làm đẹp, spa'],['🧑‍💼','🙋‍♀️','Nhân viên bán hàng, tư vấn, sale'],
+  ['🏃‍♂️','🏃‍♀️','Vận động viên, huấn luyện viên thể thao'],['🧑‍🍼','🤱','Nội trợ, chăm con'],
+  ['🛵','🚚','Shipper, tài xế giao hàng, vận tải'],['🚕','🚌','Tài xế taxi, xe công nghệ, xe buýt'],
+  ['📸','🎥','Nhiếp ảnh, quay phim, sáng tạo nội dung'],['🏦','📊','Ngân hàng, tài chính, chứng khoán'],
+  ['☀️','⚡','Năng lượng mặt trời, điện, kỹ thuật điện'],['🏗️','📐','Kiến trúc sư, thiết kế nội thất']
+];
+const AV_COLORS = ['#0e7c66','#1b6fd0','#7c3aed','#db2777','#ea580c','#ca8a04','#475569','#0891b2'];
+let avatarPhoto = null;
+function avatarHtml(size) {
+  const v = settingStr('avatar'), n = displayName(), st = `width:${size}px;height:${size}px;font-size:${Math.round(size * .56)}px`;
+  if (v === 'photo' && avatarPhoto) return `<span class="av" style="${st};background:none"><img src="${avatarPhoto}" alt=""></span>`;
+  const m = v.match(/^e:(.+)\|(#[0-9a-f]{6})$/i);
+  if (m) return `<span class="av" style="${st};background:${m[2]}">${esc(m[1])}</span>`;
+  return `<span class="av" style="${st};font-size:${Math.round(size * .45)}px">${esc((n.trim().split(/\s+/).pop() || '?').charAt(0).toUpperCase())}</span>`;
+}
+function avatarPicker() {
+  const cur = settingStr('avatar').match(/^e:(.+)\|(#[0-9a-f]{6})$/i);
+  let pick = cur ? cur[1] : '', col = cur ? cur[2] : AV_COLORS[0];
+  modal(`<h2>Chọn avatar<button class="x" data-x>×</button></h2>
+    <input id="avQ" type="search" placeholder="Tìm nghề: giáo viên, kỹ sư, bác sĩ, shipper…" autocomplete="off">
+    <div class="avgrid" id="avGrid"></div>
+    <div class="flabel">Màu nền</div><div class="row wrapx" id="avCol">${AV_COLORS.map(c => `<button type="button" class="avc" data-c="${c}" style="background:${c}" aria-label="Màu ${c}"></button>`).join('')}</div>
+    <div class="flabel">Hoặc dùng ảnh của bạn</div><div class="row wrapx"><button class="btn sm" id="avUp">📷 Tải ảnh lên</button><button class="btn sm" id="avNone">Dùng chữ cái đầu tên</button></div>
+    <input type="file" id="avFile" accept="image/*" class="hide">
+    <div class="muted" style="font-size:12.5px;margin-top:6px">Ảnh tự tải lên chỉ lưu trên thiết bị này. Avatar nghề nghiệp được đồng bộ trên mọi thiết bị.</div>
+    <div class="acts"><button class="btn pri" id="avSave">Lưu avatar</button></div>`, true);
+  const draw = () => {
+    const q = plain($('#avQ').value).trim();
+    const list = AVATARS.filter(a => !q || plain(a[2]).includes(q));
+    $('#avGrid').innerHTML = list.length ? list.map(a => [a[0], a[1]].map(e => `<button type="button" class="avpick ${e === pick ? 'on' : ''}" data-e="${e}" title="${esc(a[2])}" style="background:${col}">${e}</button>`).join('') + `<small>${esc(a[2])}</small>`).map(x => `<div class="avjob">${x}</div>`).join('') : '<div class="muted">Không tìm thấy nghề này. Thử từ khác, hoặc tải ảnh của bạn lên.</div>';
+    $$('#avGrid [data-e]').forEach(b => b.onclick = () => { pick = b.dataset.e; draw(); });
+    $$('#avCol [data-c]').forEach(b => b.classList.toggle('on', b.dataset.c === col));
+  };
+  $('#avQ').oninput = draw; $$('#avCol [data-c]').forEach(b => b.onclick = () => { col = b.dataset.c; draw(); }); draw();
+  $('#avSave').onclick = () => { if (!pick) return toast('Chọn một avatar trước'); put('settings', { id: 'avatar', value: 'e:' + pick + '|' + col }); closeModal(); render(); toast('Đã đổi avatar'); };
+  $('#avNone').onclick = () => { put('settings', { id: 'avatar', value: '' }); closeModal(); render(); toast('Đã dùng chữ cái đầu tên'); };
+  $('#avUp').onclick = () => $('#avFile').click();
+  $('#avFile').onchange = e => {
+    const f = e.target.files[0]; if (!f) return; const url = URL.createObjectURL(f), im = new Image();
+    im.onload = async () => { const z = 192, cv = document.createElement('canvas'), k = Math.min(im.width, im.height); cv.width = cv.height = z;
+      cv.getContext('2d').drawImage(im, (im.width - k) / 2, (im.height - k) / 2, k, k, 0, 0, z, z); URL.revokeObjectURL(url);
+      avatarPhoto = cv.toDataURL('image/jpeg', .85); await idb.set('avatar:' + user.email, avatarPhoto);
+      put('settings', { id: 'avatar', value: 'photo' }); closeModal(); render(); toast('Đã đặt ảnh đại diện'); };
+    im.onerror = () => toast('Không đọc được ảnh này'); im.src = url;
+  };
+}
+function settingStr(id) { const r = byId('settings', id); return r ? String(r.value || '') : ''; }
+const displayName = () => settingStr('displayName').trim() || (user && user.name) || (demo ? 'Dùng thử' : '');
+function sideUser() { const el = $('#sideUser'); if (!el) return; const n = displayName(); el.innerHTML = avatarHtml(34) + `<span>${esc(n)}</span>`; }
 function setting(id, def) { const r = byId('settings', id); if (!r) return def; const n = Number(r.value); return isFinite(n) && r.value !== '' ? n : def; }
 function seedLocal() {
   SEED_CATEGORIES.forEach((c, i) => { put('categories', { id: c[0], name: c[1], kind: c[2], group: c[3], sort: i + 1, archived: 0, icon: c[5] }, true); if (c[4]) put('budgets', { id: 'b_' + c[0] + '_all', categoryId: c[0], month: '*', amount: c[4] }, true); });
@@ -553,7 +620,7 @@ async function logout() {
   showLogin();
 }
 async function start() {
-  stateKey = 'state:' + user.email;
+  stateKey = 'state:' + user.email; avatarPhoto = await idb.get('avatar:' + user.email);
   const raw = await idb.get(stateKey);
   S = blank();
   if (raw) { try { S = Object.assign(blank(), JSON.parse(raw)); } catch (e) {} }
@@ -567,7 +634,7 @@ async function start() {
 function shell() {
   $('#side').innerHTML = `<div class="brand"><i>${LOGO(15)}</i>MoneyFlow</div>` +
     Object.keys(PAGES).map(p => `<button class="nav" data-go="${p}">${ICON[p]}${PAGES[p]}</button>`).join('') +
-    `<div class="grow"></div><div class="muted" style="font-size:12.5px;padding:0 12px;overflow:hidden;text-overflow:ellipsis">${esc(user.name || '')}<br>${esc(demo ? 'Chế độ dùng thử' : user.email)}</div>`;
+    `<div class="grow"></div><div id="sideUser" class="sideuser"></div>`;
   $('#tabs').innerHTML = `<button data-go="home">${ICON.home}Tổng quan</button><button data-go="tx">${ICON.tx}Giao dịch</button>
     <button class="fab" id="fab" aria-label="Thêm giao dịch">${ICON.plus}</button>
     <button data-go="bud">${ICON.bud}Ngân sách</button><button data-go="more">${ICON.more}Thêm</button>`;
@@ -584,7 +651,7 @@ function go(p) { ui.page = p; if (location.hash.slice(1) !== p) history.replaceS
 window.addEventListener('hashchange', () => { const p = location.hash.slice(1); if (p in PAGES && p !== ui.page) go(p); });
 function render() {
   if ($('#app').classList.contains('hide')) return;
-  $('#title').textContent = PAGES[ui.page];
+  $('#title').textContent = PAGES[ui.page]; sideUser();
   $$('[data-go]').forEach(b => b.classList.toggle('on', b.dataset.go === ui.page || (b.dataset.go === 'more' && ['acc', 'rep', 'set'].includes(ui.page))));
   ({ home: pHome, tx: pTx, acc: pAcc, bud: pBud, rep: pRep, set: pSet })[ui.page]();
 }
@@ -971,7 +1038,10 @@ function applyTheme() { const t = lsGet('stc_theme') || ''; if (t) document.docu
 function pSet() {
   const th = lsGet('stc_theme') || '', bgk = lsGet('stc_bg') || '', lim = budgetMap('*');
   $('#main').innerHTML = `<div class="grid" style="max-width:720px">
-  <div class="card"><h2>Tài khoản đăng nhập</h2><div class="row sp wrapx"><div><b>${esc(user.name || '')}</b><div class="muted">${demo ? 'Chế độ dùng thử: dữ liệu chỉ nằm trên máy này' : esc(user.email)}</div></div><button class="btn" id="sOut">${demo ? 'Thoát dùng thử' : 'Đăng xuất'}</button></div></div>
+  <div class="card"><h2>Tài khoản đăng nhập</h2>
+    <div class="row" style="gap:14px;margin-bottom:6px">${avatarHtml(64)}<button class="btn sm" id="sAv">Đổi avatar</button></div>
+    <label class="f" style="margin-top:0"><span>Tên hiển thị (hiện ở góc trái màn hình)</span><div class="row"><input id="sName" maxlength="40" value="${esc(displayName())}" placeholder="Nhập tên bạn muốn hiển thị"><button class="btn pri" id="sNameSave" style="flex:none">Lưu tên</button></div></label>
+    <div class="row sp wrapx" style="margin-top:14px"><div><b>${esc(user.name || '')}</b><div class="muted">${demo ? 'Chế độ dùng thử: dữ liệu chỉ nằm trên máy này' : esc(user.email)}</div></div><button class="btn" id="sOut">${demo ? 'Thoát dùng thử' : 'Đăng xuất'}</button></div></div>
   ${user.isAdmin ? `<div class="card"><h2>Quản lý người dùng <button class="btn sm" id="sAdm">Tải danh sách</button></h2><div id="admBox" class="muted">Duyệt hoặc khóa người dùng. Người mới đăng nhập lần đầu sẽ ở trạng thái “Chờ duyệt”.</div></div>` : ''}
   <div class="card"><h2>Danh mục thu chi <button class="btn sm" id="sCat">+ Danh mục</button></h2><div id="catBox"></div></div>
   <div class="card"><h2>Hạn mức chi theo danh mục <span class="pill" id="limTot"></span></h2>
@@ -993,6 +1063,8 @@ function pSet() {
     <div class="muted" style="font-size:13px;margin-top:10px">${demo ? '' : 'Dữ liệu được lưu trong Google Sheets và tự sao lưu mỗi đêm. Lần đồng bộ gần nhất: ' + (S.lastSync ? new Date(S.lastSync).toLocaleString('vi-VN') : 'chưa có') + '.'}</div></div>
   </div>`;
   $('#sOut').onclick = logout;
+  const saveName = () => { const v = $('#sName').value.trim(); if (v === settingStr('displayName')) return toast('Không có thay đổi'); put('settings', { id: 'displayName', value: v }); sideUser(); toast(v ? 'Đã lưu tên hiển thị' : 'Đã dùng lại tên tài khoản Google'); };
+  $('#sAv').onclick = avatarPicker; $('#sNameSave').onclick = saveName; $('#sName').onkeydown = e => { if (e.key === 'Enter') saveName(); };
   $('#sAlert').onchange = e => { put('settings', { id: 'alertPct', value: String(Math.max(10, Math.min(100, Number(e.target.value) || 80))) }); toast('Đã lưu'); };
   $('#sSpend').onchange = e => { put('settings', { id: 'spendPct', value: String(Math.max(10, Math.min(100, Number(e.target.value) || 60))) }); toast('Đã lưu'); };
   $('#sTheme').onchange = e => { lsSet('stc_theme', e.target.value || null); applyTheme(); };
