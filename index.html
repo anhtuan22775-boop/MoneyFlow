@@ -61,6 +61,11 @@ body.glass #main>.row>.muted{color:var(--ink);background:color-mix(in srgb,var(-
 .btn.scanbtn{width:100%;justify-content:flex-start;gap:12px;margin-bottom:12px;padding:10px 14px;text-align:left;border:1.5px dashed var(--brand);background:var(--brand-soft);color:var(--ink)}
 .scanbtn>span:first-child{font-size:26px}.scanbtn b{display:block}.scanbtn small{display:block;font-weight:500;color:var(--muted);font-size:12.5px}
 .scanbtn.busy>span:first-child{animation:pulse 1s infinite}
+.ask{position:fixed;inset:0;z-index:90;background:rgba(8,14,12,.55);display:grid;place-items:center;padding:20px;animation:fadeIn .15s ease}.ask.out{opacity:0;transition:opacity .15s}
+.askbox{background:var(--card);color:var(--ink);border-radius:20px;padding:22px 20px 18px;width:100%;max-width:360px;text-align:center;box-shadow:0 20px 50px rgba(0,0,0,.3);animation:sheetIn .2s cubic-bezier(.2,.8,.2,1)}
+.askic{width:54px;height:54px;border-radius:50%;background:var(--danger-bg);display:grid;place-items:center;font-size:26px;margin:0 auto 10px}
+.askbox h3{font-size:17px;line-height:1.35}.askbox p{color:var(--muted);font-size:14px;margin:8px 0 0}.askbox .askd{color:var(--ink);font-weight:600}
+.btn.dan.solid{background:var(--danger);border-color:var(--danger);color:#fff}
 .limrow{display:flex;align-items:center;gap:10px;padding:5px 0}.limrow span{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-weight:600}.limrow input{width:150px;flex:none;text-align:right;font-variant-numeric:tabular-nums;min-height:38px;padding:7px 10px}
 .swatches{display:flex;gap:8px;flex-wrap:wrap}
 .swatches button{width:58px;height:58px;border-radius:14px;border:2px solid var(--line);background-size:cover;background-position:center;font-size:11.5px;font-weight:700;color:var(--muted);padding:0;overflow:hidden}
@@ -619,7 +624,7 @@ async function onCredential(resp) {
   } catch (e) { showLogin(e.message); }
 }
 async function logout() {
-  if (!demo && dirtyCount() && !confirm('Còn ' + dirtyCount() + ' thay đổi chưa gửi lên máy chủ. Đăng xuất sẽ làm mất các thay đổi này. Tiếp tục?')) return;
+  if (!demo && dirtyCount() && !await ask('Còn ' + dirtyCount() + ' thay đổi chưa gửi lên máy chủ. Đăng xuất sẽ làm mất các thay đổi này. Tiếp tục?')) return;
   if (!demo) await idb.del(stateKey);
   try { if (window.google) google.accounts.id.disableAutoSelect(); } catch (e) {}
   session = null; user = null; demo = false; S = blank(); stateKey = '';
@@ -672,6 +677,17 @@ function shrinkImage(file, max, q) {
     im.onerror = () => { URL.revokeObjectURL(url); rej(new Error('Không đọc được ảnh này')); }; im.src = url; });
 }
 function bad(sel, msg) { const el = $(sel); if (el) { el.classList.remove('ferr'); void el.offsetWidth; el.classList.add('ferr'); el.scrollIntoView({ block: 'center', behavior: 'smooth' }); el.addEventListener('input', () => el.classList.remove('ferr'), { once: true }); el.addEventListener('change', () => el.classList.remove('ferr'), { once: true }); } toast(msg, true); }
+/* Hộp xác nhận riêng của app (thay hộp mặc định của trình duyệt) */
+function ask(msg, detail, okText) {
+  return new Promise(res => {
+    const d = document.createElement('div'); d.className = 'ask';
+    d.innerHTML = `<div class="askbox" role="alertdialog" aria-modal="true"><div class="askic">🗑️</div><h3>${esc(msg.split('\n')[0])}</h3>${detail ? `<p class="askd">${esc(detail)}</p>` : ''}${msg.includes('\n') ? `<p>${esc(msg.split('\n').slice(1).join(' ').trim())}</p>` : ''}<div class="acts"><button class="btn" data-a="0">Hủy</button><button class="btn dan solid" data-a="1">${esc(okText || 'Có')}</button></div></div>`;
+    const done = v => { document.removeEventListener('keydown', key); d.classList.add('out'); setTimeout(() => d.remove(), 160); res(v); };
+    const key = e => { if (e.key === 'Escape') { e.stopPropagation(); done(false); } };
+    d.addEventListener('click', e => { const b = e.target.closest('[data-a]'); if (b) done(b.dataset.a === '1'); else if (e.target === d) done(false); });
+    document.addEventListener('keydown', key, true); document.body.appendChild(d); $('[data-a="0"]', d).focus();
+  });
+}
 function closeModal() { if (document.activeElement && document.activeElement.blur) document.activeElement.blur(); const m = $('#modal'); m.classList.remove('on'); m.innerHTML = ''; }
 $('#modal').addEventListener('mousedown', e => { if (e.target.id === 'modal') closeModal(); });
 document.addEventListener('keydown', e => { if (e.key === 'Escape') closeModal(); });
@@ -785,7 +801,7 @@ function txForm(tx, preset) {
   if (!live('accounts').length) { toast('Hãy tạo tài khoản trước'); return go('acc'); }
   if (t.type === 'adjust') return adjustForm(byId('accounts', t.accountId), t);
   modal(`<h2>${isNew ? 'Thêm giao dịch' : 'Sửa giao dịch'}<button class="x" data-x>×</button></h2>
-    ${isNew ? `<button class="btn scanbtn" id="tScan" type="button"><span>📷</span><span><b>Quét hóa đơn bằng AI</b><small>Chụp bill, AI tự điền số tiền, ngày, danh mục</small></span></button><input type="file" id="tScanFile" accept="image/*" capture="environment" class="hide">` : ''}
+    ${isNew ? `<button class="btn scanbtn" id="tScan" type="button"><span>📷</span><span><b>Quét hóa đơn bằng AI</b><small>Tự động kiểm tra số tiền, ngày thanh toán và đề xuất danh mục</small></span></button><input type="file" id="tScanFile" accept="image/*" capture="environment" class="hide">` : ''}
     <div class="seg" id="tType"><button data-t="expense">Chi</button><button data-t="income">Thu</button><button data-t="transfer">Chuyển tiền</button><button data-t="pay">Trả nợ</button></div>
     <label class="f"><span>Số tiền (₫)</span><input id="tAmt" class="amt" inputmode="numeric" autocomplete="off" placeholder="0" value="${t.amount ? fmt(t.amount) : ''}"></label>
     <div class="quick"><button data-k="000">+ 000</button><button data-q="50000">50k</button><button data-q="100000">100k</button><button data-q="200000">200k</button><button data-q="500000">500k</button></div>
@@ -844,7 +860,7 @@ function txForm(tx, preset) {
     put('transactions', t); lsSet('stc_lastacc', t.accountId); const hid = loanCheck([t.accountId, t.toAccountId, tx && tx.accountId, tx && tx.toAccountId]); closeModal(); ui.month = ymOf(t.date); render();
     if (t.type === 'expense') { const w = budgetAlerts(ymOf(t.date)).find(x => x.c.id === t.categoryId); toast(w ? (w.lv === 'over' ? '⚠ ' + w.c.name + ' đã vượt ngân sách ' + fmt(w.s - w.b) + ' ₫' : '⚠ ' + w.c.name + ' đã dùng ' + Math.round(w.p) + '% ngân sách') : 'Đã lưu'); } else if (mode === 'pay') { const left = -(balances()[t.toAccountId] || 0); toast(left > 0 ? 'Đã thanh toán. ' + accName(t.toAccountId) + ' còn nợ ' + fmt(left) + ' ₫' : 'Đã thanh toán hết ' + accName(t.toAccountId) + (hid.length ? '. Khoản vay đã được ẩn, lịch sử thanh toán vẫn giữ.' : '')); } else toast(hid.length ? 'Đã trả hết ' + hid.join(', ') + '. Khoản vay đã được ẩn, lịch sử vẫn giữ.' : 'Đã lưu');
   };
-  if (!isNew) $('#tDel').onclick = () => { if (confirm('Xóa giao dịch này?')) { remove('transactions', t.id); loanCheck([t.accountId, t.toAccountId]); closeModal(); render(); toast('Đã xóa'); } };
+  if (!isNew) $('#tDel').onclick = async () => { if (await ask('Bạn chắc chắn muốn xóa giao dịch này không?', (tx.type === 'transfer' ? (isPay(tx) ? 'Thanh toán ' + accName(tx.toAccountId) : 'Chuyển tiền') : catName(tx.categoryId)) + ' · ' + money(tx.amount) + ' · ' + tx.date.split('-').reverse().join('/'))) { remove('transactions', t.id); loanCheck([t.accountId, t.toAccountId]); closeModal(); render(); toast('Đã xóa'); } };
 }
 function adjustForm(a, tx) {
   if (!a) return;
@@ -863,7 +879,7 @@ function adjustForm(a, tx) {
     put('transactions', Object.assign(tx ? Object.assign({}, tx) : { id: uid(), type: 'adjust', accountId: a.id, toAccountId: '', categoryId: '', createdAt: Date.now() }, { amount: diff, date: $('#jDate').value || today(), note: $('#jNote').value.trim() }));
     const hid = loanCheck([a.id]); closeModal(); render(); toast(hid.length ? 'Đã trả hết ' + hid[0] + '. Khoản vay đã được ẩn, lịch sử vẫn giữ.' : 'Đã cập nhật');
   };
-  if (tx) $('#jDel').onclick = () => { if (confirm('Xóa lần cập nhật này?')) { remove('transactions', tx.id); loanCheck([a.id]); closeModal(); render(); } };
+  if (tx) $('#jDel').onclick = async () => { if (await ask('Bạn chắc chắn muốn xóa lần cập nhật này không?')) { remove('transactions', tx.id); loanCheck([a.id]); closeModal(); render(); } };
 }
 
 /* =============== TRANG: TÀI KHOẢN =============== */
@@ -925,7 +941,7 @@ function accForm(a, ptype) {
     a.note = $('#aNote').value.trim(); if (!isNew) a.archived = $('#aArc').checked ? 1 : 0;
     put('accounts', a); closeModal(); render(); toast('Đã lưu');
   };
-  if (!isNew) $('#aDel').onclick = () => { if (confirm(used ? 'Xóa “' + a.name + '”?\n\nCác giao dịch đã ghi với tài khoản này vẫn được giữ nguyên (tiền đã trả từ tài khoản khác không bị cộng lại). Số dư / dư nợ của riêng tài khoản này sẽ không còn tính vào tài sản.' : 'Xóa “' + a.name + '”?')) { remove('accounts', a.id); closeModal(); render(); toast('Đã xóa ' + a.name); } };
+  if (!isNew) $('#aDel').onclick = async () => { if (await ask(used ? 'Xóa “' + a.name + '”?\n\nCác giao dịch đã ghi với tài khoản này vẫn được giữ nguyên (tiền đã trả từ tài khoản khác không bị cộng lại). Số dư / dư nợ của riêng tài khoản này sẽ không còn tính vào tài sản.' : 'Xóa “' + a.name + '”?')) { remove('accounts', a.id); closeModal(); render(); toast('Đã xóa ' + a.name); } };
 }
 
 /* =============== TRANG: NGÂN SÁCH =============== */
@@ -1117,7 +1133,7 @@ function pSet() {
   $$('#sBg button').forEach(b => b.onclick = async () => { if (b.dataset.bg === 'custom') return $('#sBgFile').click(); lsSet('stc_bg', b.dataset.bg || null); await applyBg(); render(); });
   $('#sBgFile').onchange = e => pickBgImage(e.target.files[0]);
   $('#sExp').onclick = () => exportExcel(ui.year); $('#sCat').onclick = () => catForm();
-  if (demo) { $('#sDemo').onclick = () => { sample(); render(); toast('Đã nạp dữ liệu mẫu'); }; $('#sWipe').onclick = () => { if (confirm('Xóa toàn bộ dữ liệu dùng thử?')) { S = blank(); seedLocal(); save(); render(); } }; }
+  if (demo) { $('#sDemo').onclick = async () => { sample(); render(); toast('Đã nạp dữ liệu mẫu'); }; $('#sWipe').onclick = async () => { if (await ask('Bạn chắc chắn muốn xóa toàn bộ dữ liệu dùng thử không?')) { S = blank(); seedLocal(); save(); render(); } }; }
   else $('#sFull').onclick = () => { toast('Đang tải lại…'); sync(true); };
   if (user.isAdmin) { $('#sAdm').onclick = adminLoad; if (ui.admin) adminDraw(); }
   const box = $('#catBox');
@@ -1147,7 +1163,7 @@ function catForm(c) {
     c.kind = $('#cKind').value; c.group = $('#cGroup').value.trim() || (c.kind === 'income' ? 'Thu nhập' : 'Khác'); if (!isNew) c.archived = $('#cArc').checked ? 1 : 0;
     put('categories', c); closeModal(); render(); toast('Đã lưu');
   };
-  if (!isNew) $('#cDel').onclick = () => { if (used) return toast('Danh mục đã có giao dịch. Hãy chọn “Ẩn” thay vì xóa.'); if (confirm('Xóa danh mục này?')) { remove('categories', c.id); closeModal(); render(); } };
+  if (!isNew) $('#cDel').onclick = async () => { if (used) return toast('Danh mục đã có giao dịch. Hãy chọn “Ẩn” thay vì xóa.'); if (await ask('Bạn chắc chắn muốn xóa danh mục “' + c.name + '” không?')) { remove('categories', c.id); closeModal(); render(); } };
 }
 async function adminLoad() { const b = $('#admBox'); b.textContent = 'Đang tải…'; try { ui.admin = await api('adminList'); adminDraw(); } catch (e) { b.textContent = e.message; } }
 function adminDraw() {
