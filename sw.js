@@ -1,5 +1,5 @@
 /* MoneyFlow – chạy được khi mất mạng. Đổi số phiên bản khi cập nhật trang web. */
-const CACHE = 'sothuchi-v25';
+const CACHE = 'sothuchi-v26';
 const FILES = ['./', 'index.html', 'config.js', 'manifest.webmanifest', 'icon-192.png', 'icon-512.png', 'privacy.html'];
 self.addEventListener('install', e => { e.waitUntil(caches.open(CACHE).then(c => c.addAll(FILES)).then(() => self.skipWaiting())); });
 self.addEventListener('activate', e => { e.waitUntil(caches.keys().then(ks => Promise.all(ks.filter(k => k !== CACHE).map(k => caches.delete(k)))).then(() => self.clients.claim())); });

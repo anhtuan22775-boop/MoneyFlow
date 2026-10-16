@@ -691,7 +691,17 @@ function ask(msg, detail, okText) {
 function closeModal() { if (document.activeElement && document.activeElement.blur) document.activeElement.blur(); const m = $('#modal'); m.classList.remove('on'); m.innerHTML = ''; }
 $('#modal').addEventListener('mousedown', e => { if (e.target.id === 'modal') closeModal(); });
 document.addEventListener('keydown', e => { if (e.key === 'Escape') closeModal(); });
-function bindAmt(inp) { inp.addEventListener('input', () => { const n = parseAmt(inp.value); inp.value = n ? fmt(n) : (/^-/.test(inp.value) ? '-' : ''); }); }
+/* Ô số tiền: con trỏ luôn nằm ở cuối, không cho dời vào giữa (tránh gõ nhầm chỗ) */
+function bindAmt(inp) {
+  const end = () => { const n = inp.value.length; if (n && inp.selectionStart === 0 && inp.selectionEnd === n) return; /* chọn hết để gõ đè thì vẫn cho */ if (inp.selectionStart !== n || inp.selectionEnd !== n) { try { inp.setSelectionRange(n, n); } catch (e) {} } };
+  const later = () => requestAnimationFrame(end);
+  inp.addEventListener('input', () => { const n = parseAmt(inp.value); inp.value = n ? fmt(n) : (/^-/.test(inp.value) ? '-' : ''); end(); });
+  ['focus', 'click', 'mouseup', 'touchend', 'select', 'keyup'].forEach(ev => inp.addEventListener(ev, later));
+  document.addEventListener('selectionchange', () => { if (document.activeElement === inp) end(); });
+  inp.addEventListener('keydown', e => { if (['ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown', 'Home', 'End', 'PageUp', 'PageDown'].includes(e.key) || ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'a')) e.preventDefault(); });
+  inp.addEventListener('dragstart', e => e.preventDefault());
+  inp.style.webkitUserSelect = inp.style.userSelect = 'none';
+}
 
 /* =============== TRANG: TỔNG QUAN =============== */
 const isPay = t => { const a = S.accounts.find(x => x.id === t.toAccountId); return t.type === 'transfer' && !!a && isDebt(a); };
