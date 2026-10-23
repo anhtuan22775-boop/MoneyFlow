@@ -66,6 +66,9 @@ body.glass #main>.row>.muted{color:var(--ink);background:color-mix(in srgb,var(-
 .askic{width:54px;height:54px;border-radius:50%;background:var(--danger-bg);display:grid;place-items:center;font-size:26px;margin:0 auto 10px}
 .askbox h3{font-size:17px;line-height:1.35}.askbox p{color:var(--muted);font-size:14px;margin:8px 0 0}.askbox .askd{color:var(--ink);font-weight:600}
 .btn.dan.solid{background:var(--danger);border-color:var(--danger);color:#fff}
+.bizchk{display:flex;gap:10px;align-items:flex-start;margin-top:12px;padding:10px 12px;border:1px solid var(--line);border-radius:12px;background:var(--soft);cursor:pointer}
+.bizchk input{width:20px;height:20px;min-height:0;margin-top:2px;flex:none;accent-color:var(--brand)}.bizchk b{display:block;font-size:14px}.bizchk small{display:block;color:var(--muted);font-size:12.5px}
+.item .am small{white-space:nowrap}
 .limrow{display:flex;align-items:center;gap:10px;padding:5px 0}.limrow span{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-weight:600}.limrow input{width:150px;flex:none;text-align:right;font-variant-numeric:tabular-nums;min-height:38px;padding:7px 10px}
 .swatches{display:flex;gap:8px;flex-wrap:wrap}
 .swatches button{width:58px;height:58px;border-radius:14px;border:2px solid var(--line);background-size:cover;background-position:center;font-size:11.5px;font-weight:700;color:var(--muted);padding:0;overflow:hidden}
@@ -277,9 +280,13 @@ const ATYPES = {
   cash: { n: 'Tiền mặt', g: 'money' }, bank: { n: 'Ngân hàng', g: 'money' }, ewallet: { n: 'Ví điện tử', g: 'money' },
   saving: { n: 'Tiết kiệm', g: 'save' }, invest: { n: 'Đầu tư', g: 'save' },
   asset: { n: 'Tài sản', g: 'asset' }, lend: { n: 'Cho vay', g: 'asset' },
-  credit: { n: 'Thẻ tín dụng', g: 'debt' }, paylater: { n: 'Trả sau (MoMo Trả Sau…)', g: 'debt' }, loan: { n: 'Khoản vay', g: 'debt' }
+  credit: { n: 'Thẻ tín dụng', g: 'debt' }, paylater: { n: 'Trả sau (MoMo Trả Sau…)', g: 'debt' }, loan: { n: 'Khoản vay', g: 'debt' },
+  company: { n: 'Quỹ công ty (tạm ứng)', g: 'company' }
 };
-const AGROUPS = { money: 'Tiền đang có', save: 'Tiết kiệm & đầu tư', asset: 'Tài sản & cho vay', debt: 'Nợ phải trả' };
+const AGROUPS = { money: 'Tiền đang có', save: 'Tiết kiệm & đầu tư', asset: 'Tài sản & cho vay', debt: 'Nợ phải trả', company: 'Quỹ công ty (tạm ứng)' };
+const isBiz = t => t && (t.type === 'bizin' || t.type === 'bizout' || t.type === 'bizret');
+const funds = () => live('accounts').filter(a => a.type === 'company');
+const fundText = b => b >= 0 ? 'Đang giữ ' + fmt(b) : 'Công ty còn nợ anh ' + fmt(-b);
 const isDebt = a => ATYPES[a.type] && ATYPES[a.type].g === 'debt';
 const SEED_CATEGORIES = [
   ['c_luong','Lương tháng','income','Thu nhập',0,'💼'],['c_thu1','Thu nhập 1','income','Thu nhập',0,'💵'],['c_thu2','Thu nhập 2','income','Thu nhập',0,'💰'],
@@ -304,7 +311,7 @@ const ICON = {
   more: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="5" cy="12" r="1.5"/><circle cx="12" cy="12" r="1.5"/><circle cx="19" cy="12" r="1.5"/></svg>'
 };
 /* Biểu tượng: dùng emoji nên không cần tải hình, chạy được cả khi mất mạng */
-const ACC_ICON = { cash: '💵', bank: '🏦', ewallet: '📱', saving: '🐷', invest: '📈', asset: '🏠', lend: '🤝', credit: '💳', paylater: '⏳', loan: '📄' };
+const ACC_ICON = { cash: '💵', bank: '🏦', ewallet: '📱', saving: '🐷', invest: '📈', asset: '🏠', lend: '🤝', credit: '💳', company: '💼', paylater: '⏳', loan: '📄' };
 const ICON_SETS = [
   ['Ăn uống', '🍜 🍚 🍔 🍕 ☕ 🧋 🍻 🍰 🥬 🛒 🏪'],
   ['Nhà cửa & hóa đơn', '🏠 🔑 💡 💧 🔥 🌐 📱 📺 🧾 🛠️ 🧹 🛋️ 🧺'],
@@ -471,13 +478,16 @@ function balances() {
     if (t.type === 'income' || t.type === 'adjust') { if (t.accountId in b) b[t.accountId] += v; }
     else if (t.type === 'expense') { if (t.accountId in b) b[t.accountId] -= v; }
     else if (t.type === 'transfer') { if (t.accountId in b) b[t.accountId] -= v; if (t.toAccountId in b) b[t.toAccountId] += v; }
+    else if (t.type === 'bizin') { if (t.accountId in b) b[t.accountId] += v; if (t.toAccountId in b) b[t.toAccountId] += v; }
+    else if (t.type === 'bizout' || t.type === 'bizret') { if (t.accountId in b) b[t.accountId] -= v; if (t.toAccountId in b) b[t.toAccountId] -= v; }
   });
   return b;
 }
 function totals(bal) {
-  const g = { money: 0, save: 0, asset: 0, debt: 0 };
+  const g = { money: 0, save: 0, asset: 0, debt: 0, company: 0 };
   live('accounts').forEach(a => { const k = (ATYPES[a.type] || ATYPES.cash).g; g[k] += bal[a.id] || 0; });
-  g.net = g.money + g.save + g.asset + g.debt;
+  // Tiền công ty đang nằm trong tài khoản của anh không phải của anh: trừ ra (nếu công ty nợ anh thì cộng vào)
+  g.net = g.money + g.save + g.asset + g.debt - g.company;
   return g;
 }
 /** Tổng thu/chi theo tháng và theo danh mục. Chuyển tiền và cập nhật giá trị KHÔNG tính vào thu chi. */
@@ -719,6 +729,9 @@ function txRow(t) {
   if (t.type === 'income') { ic = catIconById(t.categoryId); cls = 'in'; title = catName(t.categoryId); sub = accName(t.accountId); am = `<span class="pos">+${fmt(v)}</span>`; }
   else if (t.type === 'expense') { ic = catIconById(t.categoryId); cls = 'out'; title = catName(t.categoryId); sub = accName(t.accountId); am = `<span class="neg">−${fmt(v)}</span>`; }
   else if (t.type === 'transfer') { const pd = isPay(t); ic = pd ? '💸' : '⇄'; cls = ''; title = pd ? 'Thanh toán ' + accName(t.toAccountId) : 'Chuyển tiền'; sub = pd ? 'Trả từ ' + accName(t.accountId) : accName(t.accountId) + ' → ' + accName(t.toAccountId); am = fmt(v); }
+  else if (t.type === 'bizin') { ic = '💼'; cls = 'in'; title = 'Nhận tiền công ty'; sub = 'Vào ' + accName(t.accountId); am = `<span class="muted">+${fmt(v)}</span>`; }
+  else if (t.type === 'bizout') { ic = '💼'; cls = ''; title = 'Chi việc công ty'; sub = 'Trả bằng ' + accName(t.accountId); am = `<span class="muted">−${fmt(v)}</span>`; }
+  else if (t.type === 'bizret') { ic = '💼'; cls = ''; title = 'Trả lại tiền công ty'; sub = 'Từ ' + accName(t.accountId); am = `<span class="muted">−${fmt(v)}</span>`; }
   else { ic = '≈'; cls = ''; title = 'Cập nhật giá trị'; sub = accName(t.accountId); am = (v >= 0 ? '+' : '−') + fmt(Math.abs(v)); }
   return `<button class="item" data-tx="${esc(t.id)}"><span class="ic ${cls}">${ic}</span><span class="tx"><b>${esc(title)}</b><small>${esc(sub)}${t.note ? ' · ' + esc(t.note) : ''}</small></span><span class="am">${am}</span></button>`;
 }
@@ -758,7 +771,7 @@ function pHome() {
         : `<div class="muted">Tháng này chưa có danh mục nào đang chi gần tới hạn mức.</div>`}</div>
     </div>
     <div class="card" style="align-self:start"><h2>Tài khoản <button class="link" data-goto="acc">Quản lý</button></h2>
-      ${Object.keys(AGROUPS).map(g => { const l = accs.filter(a => ATYPES[a.type].g === g); if (!l.length) return ''; return `<div class="dayhead" style="padding-top:8px"><span>${AGROUPS[g]}</span><span class="num">${fmt(tot[g])}</span></div><div class="list">${l.map(a => `<div class="item"><span class="ic sm">${ACC_ICON[a.type] || '💰'}</span><span class="tx"><b>${esc(a.name)}</b></span><span class="am ${bal[a.id] < 0 ? 'neg' : ''}">${fmt(bal[a.id])}</span>${g === 'debt' && bal[a.id] < 0 ? `<button class="btn sm" data-pay="${esc(a.id)}">Thanh toán</button>` : ''}</div>`).join('')}</div>`; }).join('')}
+      ${Object.keys(AGROUPS).map(g => { const l = accs.filter(a => ATYPES[a.type].g === g); if (!l.length) return ''; return `<div class="dayhead" style="padding-top:8px"><span>${AGROUPS[g]}</span><span class="num">${g === 'company' ? '' : fmt(tot[g])}</span></div><div class="list">${l.map(a => `<div class="item"><span class="ic sm">${ACC_ICON[a.type] || '💰'}</span><span class="tx"><b>${esc(a.name)}</b></span><span class="am ${bal[a.id] < 0 && g !== 'company' ? 'neg' : ''}">${g === 'company' ? fmt(Math.abs(bal[a.id])) + `<small>${bal[a.id] >= 0 ? 'đang giữ' : 'công ty nợ anh'}</small>` : fmt(bal[a.id])}</span>${g === 'debt' && bal[a.id] < 0 ? `<button class="btn sm" data-pay="${esc(a.id)}">Thanh toán</button>` : ''}</div>`).join('')}</div>`; }).join('')}
     </div>
   </div>`;
   bindMonth(); bindTx(); bindPay(); $$('#main [data-goto]').forEach(b => b.onclick = () => go(b.dataset.goto));
@@ -769,7 +782,7 @@ function pTx() {
   const f = ui.f, accs = live('accounts'), cl = live('categories');
   $('#main').innerHTML = `<div class="row sp wrapx" style="margin-bottom:12px">${monthNav()}<span id="txsum" class="muted" style="font-size:13.5px"></span></div>
   <div class="filters" style="margin-bottom:6px">
-    <select id="fType" aria-label="Loại"><option value="">Tất cả loại</option><option value="expense">Chi</option><option value="income">Thu</option><option value="transfer">Chuyển tiền</option><option value="adjust">Cập nhật giá trị</option></select>
+    <select id="fType" aria-label="Loại"><option value="">Tất cả loại</option><option value="expense">Chi</option><option value="income">Thu</option><option value="transfer">Chuyển tiền</option><option value="adjust">Cập nhật giá trị</option><option value="biz">💼 Tiền công ty</option></select>
     <select id="fAcc" aria-label="Tài khoản"><option value="">Tất cả tài khoản</option>${accs.map(a => `<option value="${esc(a.id)}">${esc(a.name)}</option>`).join('')}</select>
     <select id="fCat" aria-label="Danh mục"><option value="">Tất cả danh mục</option>${cl.map(c => `<option value="${esc(c.id)}">${catIcon(c)} ${esc(c.name)} (${esc(c.group)})</option>`).join('')}</select>
     <input id="fQ" type="search" placeholder="Tìm ghi chú…" aria-label="Tìm ghi chú">
@@ -777,7 +790,7 @@ function pTx() {
   $('#fType').value = f.type; $('#fAcc').value = f.acc; $('#fCat').value = f.cat; $('#fQ').value = f.q;
   const draw = () => {
     const q = f.q.trim().toLowerCase();
-    const list = live('transactions').filter(t => t.date && t.date.startsWith(ui.month) && (!f.type || t.type === f.type) && (!f.acc || t.accountId === f.acc || t.toAccountId === f.acc) && (!f.cat || t.categoryId === f.cat) && (!q || (t.note || '').toLowerCase().includes(q) || catName(t.categoryId).toLowerCase().includes(q)))
+    const list = live('transactions').filter(t => t.date && t.date.startsWith(ui.month) && (!f.type || t.type === f.type || (f.type === 'biz' && isBiz(t))) && (!f.acc || t.accountId === f.acc || t.toAccountId === f.acc) && (!f.cat || t.categoryId === f.cat) && (!q || (t.note || '').toLowerCase().includes(q) || catName(t.categoryId).toLowerCase().includes(q)))
       .sort((a, b) => b.date.localeCompare(a.date) || b.createdAt - a.createdAt);
     let inc = 0, exp = 0, html = '', day = '';
     const dayNet = {};
@@ -794,7 +807,7 @@ function pTx() {
 
 /* =============== FORM GIAO DỊCH =============== */
 function accOptions(sel, skipArchived) {
-  const accs = live('accounts').filter(a => !a.archived || a.id === sel).sort((a, b) => (a.sort || 0) - (b.sort || 0));
+  const accs = live('accounts').filter(a => (!a.archived || a.id === sel) && a.type !== 'company').sort((a, b) => (a.sort || 0) - (b.sort || 0));
   return Object.keys(AGROUPS).map(g => { const l = accs.filter(a => ATYPES[a.type].g === g); return l.length ? `<optgroup label="${AGROUPS[g]}">${l.map(a => `<option value="${esc(a.id)}" ${a.id === sel ? 'selected' : ''}>${ACC_ICON[a.type] || ''} ${esc(a.name)}</option>`).join('')}</optgroup>` : ''; }).join('');
 }
 function catOptions(kind, sel) {
@@ -806,6 +819,9 @@ function txForm(tx, preset) {
   const def = (live('accounts').find(a => a.id === lastAcc && !a.archived) || live('accounts').find(a => !a.archived) || {}).id || '';
   const t = tx ? Object.assign({}, tx) : Object.assign({ id: uid(), type: 'expense', date: ui.month === ymOf(today()) ? today() : ui.month + '-01', amount: 0, accountId: def, toAccountId: '', categoryId: '', note: '', createdAt: Date.now() }, preset || {});
   const wantPay = !!t.pay; delete t.pay;
+  const fl = funds(); let biz = !!t.biz || isBiz(t); const wantRet = !!t.ret || t.type === 'bizret'; delete t.biz; delete t.ret;
+  if (t.type === 'bizin') t.type = 'income'; else if (t.type === 'bizout' || t.type === 'bizret') t.type = 'expense';
+  if (biz && !t.toAccountId && fl[0]) t.toAccountId = fl[0].id;
   const bal0 = balances(), debts = live('accounts').filter(a => isDebt(a) && (!a.archived || a.id === t.toAccountId));
   const moneyAcc = live('accounts').find(a => ATYPES[a.type].g === 'money' && !a.archived);
   if (!live('accounts').length) { toast('Hãy tạo tài khoản trước'); return go('acc'); }
@@ -815,6 +831,8 @@ function txForm(tx, preset) {
     <div class="seg" id="tType"><button data-t="expense">Chi</button><button data-t="income">Thu</button><button data-t="transfer">Chuyển tiền</button><button data-t="pay">Trả nợ</button></div>
     <label class="f"><span>Số tiền (₫)</span><input id="tAmt" class="amt" inputmode="numeric" autocomplete="off" placeholder="0" value="${t.amount ? fmt(t.amount) : ''}"></label>
     <div class="quick"><button data-k="000">+ 000</button><button data-q="50000">50k</button><button data-q="100000">100k</button><button data-q="200000">200k</button><button data-q="500000">500k</button></div>
+    ${fl.length ? `<label class="bizchk" id="wBiz"><input type="checkbox" id="tBiz" ${biz ? 'checked' : ''}><span><b id="lBiz">💼 Tiền của công ty</b><small id="sBiz"></small></span></label>
+    <label class="f ${fl.length > 1 ? '' : 'hide'}" id="wFund"><span>Quỹ công ty</span><select id="tFund">${fl.map(f => `<option value="${esc(f.id)}" ${f.id === t.toAccountId ? 'selected' : ''}>💼 ${esc(f.name)}</option>`).join('')}</select></label>` : ''}
     <label class="f" id="wCat"><span>Danh mục</span><select id="tCat"></select></label>
     <label class="f"><span id="lAcc">Tài khoản</span><select id="tAcc">${accOptions(t.accountId)}</select></label>
     <label class="f" id="wPay"><span>Khoản nợ cần thanh toán</span><select id="tPay">${debts.length ? '' : '<option value="">Chưa có khoản nợ nào</option>'}${debts.map(a => `<option value="${esc(a.id)}" ${a.id === t.toAccountId ? 'selected' : ''}>${ACC_ICON[a.type]} ${esc(a.name)} · dư nợ ${fmt(-(bal0[a.id] || 0))}</option>`).join('')}</select>
@@ -827,14 +845,20 @@ function txForm(tx, preset) {
   let mode = wantPay || isPay(t) ? 'pay' : t.type;
   const setType = ty => {
     mode = ty; t.type = ty === 'pay' ? 'transfer' : ty; $$('#tType button').forEach(b => b.classList.toggle('on', b.dataset.t === ty));
-    $('#wCat').classList.toggle('hide', ty === 'transfer' || ty === 'pay'); $('#wTo').classList.toggle('hide', ty !== 'transfer'); $('#wPay').classList.toggle('hide', ty !== 'pay');
+    const canBiz = fl.length && (ty === 'expense' || ty === 'income'), isB = canBiz && $('#tBiz').checked;
+    if (fl.length) { $('#wBiz').classList.toggle('hide', !canBiz); $('#wFund').classList.toggle('hide', !isB || fl.length < 2);
+      $('#lBiz').textContent = ty === 'income' ? '💼 Đây là tiền công ty ứng / hoàn cho anh' : (wantRet ? '💼 Trả lại tiền thừa cho công ty' : '💼 Đây là khoản chi cho việc công ty');
+      $('#sBiz').textContent = ty === 'income' ? 'Không tính là thu nhập, cộng vào Quỹ công ty' : 'Không tính vào chi tiêu cá nhân, trừ vào Quỹ công ty'; }
+    $('#wCat').classList.toggle('hide', ty === 'transfer' || ty === 'pay' || isB); $('#wTo').classList.toggle('hide', ty !== 'transfer'); $('#wPay').classList.toggle('hide', ty !== 'pay');
     $('#lAcc').textContent = ty === 'pay' ? 'Trả từ tài khoản' : ty === 'transfer' ? 'Từ tài khoản' : ty === 'income' ? 'Nhận vào tài khoản' : 'Trả bằng';
     if (ty === 'expense' || ty === 'income') $('#tCat').innerHTML = catOptions(ty, t.categoryId);
     $('#modal h2').firstChild.textContent = ty === 'pay' ? 'Thanh toán ' + (!byId('accounts', $('#tPay').value) ? 'nợ' : accName($('#tPay').value)) : (isNew ? 'Thêm giao dịch' : 'Sửa giao dịch');
+    if (isB && isNew && ty === 'income') { const cur = byId('accounts', $('#tAcc').value), bk = live('accounts').find(x => x.type === 'bank' && !x.archived); if (bk && (!cur || cur.type !== 'bank')) $('#tAcc').value = bk.id; }
     if (ty === 'pay') { const cur = byId('accounts', $('#tAcc').value); if (moneyAcc && (!cur || isDebt(cur))) $('#tAcc').value = moneyAcc.id; }
   };
   $$('#tType button').forEach(b => b.onclick = () => setType(b.dataset.t)); setType(mode);
   $('#tPay').onchange = () => setType('pay');
+  if (fl.length) $('#tBiz').onchange = () => setType(mode);
   if (isNew) {
     $('#tScan').onclick = () => { if (demo) return toast('Đăng nhập để dùng quét hóa đơn bằng AI'); if (!navigator.onLine) return toast('Cần có mạng để quét hóa đơn'); $('#tScanFile').click(); };
     $('#tScanFile').onchange = async e => {
@@ -866,11 +890,12 @@ function txForm(tx, preset) {
     t.amount = a; t.accountId = $('#tAcc').value; t.date = $('#tDate').value || today(); t.note = $('#tNote').value.trim();
     if (mode === 'pay') { t.toAccountId = $('#tPay').value; t.categoryId = ''; if (!t.toAccountId) return bad('#tPay', 'Chưa có khoản nợ nào. Hãy tạo ở trang Tài khoản.'); if (t.toAccountId === t.accountId) return bad('#tAcc', 'Chọn tài khoản khác để trả nợ'); }
     else if (t.type === 'transfer') { t.toAccountId = $('#tTo').value; t.categoryId = ''; if (!t.toAccountId) return bad('#tTo', 'Chọn tài khoản nhận'); if (t.toAccountId === t.accountId) return bad('#tTo', 'Hai tài khoản phải khác nhau'); }
+    else if (fl.length && $('#tBiz').checked) { t.toAccountId = $('#tFund').value; if (t.type === 'income') t.type = 'bizin'; else t.type = wantRet ? 'bizret' : 'bizout'; if (t.type === 'bizin') t.categoryId = ''; }
     else { t.categoryId = $('#tCat').value; t.toAccountId = ''; if (!t.categoryId) return bad('#tCat', 'Chọn danh mục'); }
     put('transactions', t); lsSet('stc_lastacc', t.accountId); const hid = loanCheck([t.accountId, t.toAccountId, tx && tx.accountId, tx && tx.toAccountId]); closeModal(); ui.month = ymOf(t.date); render();
-    if (t.type === 'expense') { const w = budgetAlerts(ymOf(t.date)).find(x => x.c.id === t.categoryId); toast(w ? (w.lv === 'over' ? '⚠ ' + w.c.name + ' đã vượt ngân sách ' + fmt(w.s - w.b) + ' ₫' : '⚠ ' + w.c.name + ' đã dùng ' + Math.round(w.p) + '% ngân sách') : 'Đã lưu'); } else if (mode === 'pay') { const left = -(balances()[t.toAccountId] || 0); toast(left > 0 ? 'Đã thanh toán. ' + accName(t.toAccountId) + ' còn nợ ' + fmt(left) + ' ₫' : 'Đã thanh toán hết ' + accName(t.toAccountId) + (hid.length ? '. Khoản vay đã được ẩn, lịch sử thanh toán vẫn giữ.' : '')); } else toast(hid.length ? 'Đã trả hết ' + hid.join(', ') + '. Khoản vay đã được ẩn, lịch sử vẫn giữ.' : 'Đã lưu');
+    if (t.type === 'expense') { const w = budgetAlerts(ymOf(t.date)).find(x => x.c.id === t.categoryId); toast(w ? (w.lv === 'over' ? '⚠ ' + w.c.name + ' đã vượt ngân sách ' + fmt(w.s - w.b) + ' ₫' : '⚠ ' + w.c.name + ' đã dùng ' + Math.round(w.p) + '% ngân sách') : 'Đã lưu'); } else if (isBiz(t)) { toast('Đã lưu. ' + accName(t.toAccountId) + ': ' + fundText(balances()[t.toAccountId] || 0) + ' ₫'); } else if (mode === 'pay') { const left = -(balances()[t.toAccountId] || 0); toast(left > 0 ? 'Đã thanh toán. ' + accName(t.toAccountId) + ' còn nợ ' + fmt(left) + ' ₫' : 'Đã thanh toán hết ' + accName(t.toAccountId) + (hid.length ? '. Khoản vay đã được ẩn, lịch sử thanh toán vẫn giữ.' : '')); } else toast(hid.length ? 'Đã trả hết ' + hid.join(', ') + '. Khoản vay đã được ẩn, lịch sử vẫn giữ.' : 'Đã lưu');
   };
-  if (!isNew) $('#tDel').onclick = async () => { if (await ask('Bạn chắc chắn muốn xóa giao dịch này không?', (tx.type === 'transfer' ? (isPay(tx) ? 'Thanh toán ' + accName(tx.toAccountId) : 'Chuyển tiền') : catName(tx.categoryId)) + ' · ' + money(tx.amount) + ' · ' + tx.date.split('-').reverse().join('/'))) { remove('transactions', t.id); loanCheck([t.accountId, t.toAccountId]); closeModal(); render(); toast('Đã xóa'); } };
+  if (!isNew) $('#tDel').onclick = async () => { if (await ask('Bạn chắc chắn muốn xóa giao dịch này không?', (isBiz(tx) ? 'Tiền công ty' : tx.type === 'transfer' ? (isPay(tx) ? 'Thanh toán ' + accName(tx.toAccountId) : 'Chuyển tiền') : catName(tx.categoryId)) + ' · ' + money(tx.amount) + ' · ' + tx.date.split('-').reverse().join('/'))) { remove('transactions', t.id); loanCheck([t.accountId, t.toAccountId]); closeModal(); render(); toast('Đã xóa'); } };
 }
 function adjustForm(a, tx) {
   if (!a) return;
@@ -902,12 +927,14 @@ function pAcc() {
     <div class="card stat"><small>Tiết kiệm, đầu tư, tài sản</small><strong>${fmt(tot.save + tot.asset)}</strong><span>&nbsp;</span></div>
     <div class="card stat"><small>Nợ phải trả</small><strong class="neg">${fmt(-tot.debt)}</strong><span>Thẻ, trả sau, khoản vay</span></div></div>
   <div class="row sp" style="margin-bottom:10px"><span class="muted" style="font-size:13.5px">Bấm ✏️ để sửa hoặc xóa; bấm vào tên để xem chi tiết</span><button class="btn pri sm" id="newAcc">+ Tài khoản</button></div>
-  ${Object.keys(AGROUPS).map(g => { const l = accs.filter(a => ATYPES[a.type].g === g); if (!l.length && g !== 'debt') return ''; return `<div class="card" style="margin-bottom:12px;padding:8px 12px"><div class="dayhead" style="padding-top:8px;align-items:center"><span>${AGROUPS[g]}${g === 'debt' ? ' <button class="btn sm" id="newLoan" style="margin-left:8px;text-transform:none;letter-spacing:0">+ Khoản vay</button>' : ''}</span><span class="num">${fmt(g === 'debt' ? -tot[g] : tot[g])}</span></div><div class="list">${l.map(a => {
+  ${Object.keys(AGROUPS).map(g => { const l = accs.filter(a => ATYPES[a.type].g === g); if (!l.length && g !== 'debt') return ''; return `<div class="card" style="margin-bottom:12px;padding:8px 12px"><div class="dayhead" style="padding-top:8px;align-items:center"><span>${AGROUPS[g]}${g === 'debt' ? ' <button class="btn sm" id="newLoan" style="margin-left:8px;text-transform:none;letter-spacing:0">+ Khoản vay</button>' : ''}</span><span class="num">${g === 'company' ? '' : fmt(g === 'debt' ? -tot[g] : tot[g])}</span></div><div class="list">${l.map(a => {
     const b = bal[a.id] || 0, debt = g === 'debt', lim = Number(a.limit) || 0;
-    return `<div class="irow ${debt && b < 0 ? 'haspay' : ''}"><button class="item" data-acc="${esc(a.id)}"><span class="ic">${ACC_ICON[a.type] || '💰'}</span><span class="tx"><b>${esc(a.name)}${a.archived ? ` <span class="pill ${a.type === 'loan' && b >= 0 ? 'ok' : ''}">${a.type === 'loan' && b >= 0 ? 'Đã trả xong' : 'Đã ẩn'}</span>` : ''}</b><small>${esc(ATYPES[a.type].n)}${debt && lim ? ' · hạn mức ' + fmt(lim) + ' · còn dùng ' + fmt(lim + b) : ''}${debt && a.dueDay ? ' · hạn trả ngày ' + a.dueDay : ''}</small></span><span class="am ${debt && b < 0 ? 'neg' : ''}">${fmt(debt ? -b : b)}${debt ? '<small>dư nợ</small>' : ''}</span></button>${debt && b < 0 ? `<button class="btn sm pri" data-pay="${esc(a.id)}">Thanh toán</button>` : ''}<button class="btn sm" data-edit="${esc(a.id)}" aria-label="Sửa ${esc(a.name)}" title="Sửa / xóa">✏️</button></div>`; }).join('') || '<div class="empty" style="padding:14px">Chưa có khoản nợ nào. Bấm “+ Khoản vay” để thêm.</div>'}</div></div>`; }).join('')}
+    return `<div class="irow ${debt && b < 0 ? 'haspay' : ''}"><button class="item" data-acc="${esc(a.id)}"><span class="ic">${ACC_ICON[a.type] || '💰'}</span><span class="tx"><b>${esc(a.name)}${a.archived ? ` <span class="pill ${a.type === 'loan' && b >= 0 ? 'ok' : ''}">${a.type === 'loan' && b >= 0 ? 'Đã trả xong' : 'Đã ẩn'}</span>` : ''}</b><small>${esc(ATYPES[a.type].n)}${debt && lim ? ' · hạn mức ' + fmt(lim) + ' · còn dùng ' + fmt(lim + b) : ''}${debt && a.dueDay ? ' · hạn trả ngày ' + a.dueDay : ''}</small></span><span class="am ${debt && b < 0 ? 'neg' : ''}">${fmt(debt ? -b : Math.abs(b))}${debt ? '<small>dư nợ</small>' : g === 'company' ? `<small>${b >= 0 ? 'đang giữ' : 'công ty nợ anh'}</small>` : ''}</span></button>${g === 'company' ? `<button class="btn sm pri" data-biz="${esc(a.id)}">Quyết toán</button>` : ''}${debt && b < 0 ? `<button class="btn sm pri" data-pay="${esc(a.id)}">Thanh toán</button>` : ''}<button class="btn sm" data-edit="${esc(a.id)}" aria-label="Sửa ${esc(a.name)}" title="Sửa / xóa">✏️</button></div>`; }).join('') || '<div class="empty" style="padding:14px">Chưa có khoản nợ nào. Bấm “+ Khoản vay” để thêm.</div>'}</div></div>`; }).join('')}
+  ${funds().length ? '' : `<div class="card note-biz" style="margin-bottom:12px"><div class="row sp wrapx"><div><b>💼 Công ty ứng tiền trước cho anh chi?</b><div class="muted" style="font-size:13px">Tách tiền công ty khỏi thu chi cá nhân và theo dõi quyết toán hằng tháng.</div></div><button class="btn pri sm" id="bizSetup">Thiết lập Quỹ công ty</button></div></div>`}
   ${nArc ? `<div style="text-align:center;margin-top:4px"><button class="link" id="togArc">${ui.showArc ? 'Ẩn bớt' : 'Xem ' + nArc + ' tài khoản đã ẩn / khoản vay đã trả xong'}</button></div>` : ''}`;
   $('#newAcc').onclick = () => accForm(); if ($('#togArc')) $('#togArc').onclick = () => { ui.showArc = !ui.showArc; render(); }; $('#newLoan').onclick = () => accForm(null, 'loan'); $$('#main [data-edit]').forEach(b => b.onclick = () => accForm(byId('accounts', b.dataset.edit)));
   $$('#main [data-acc]').forEach(b => b.onclick = () => accDetail(byId('accounts', b.dataset.acc))); bindPay();
+  $$('#main [data-biz]').forEach(b => b.onclick = () => bizReport(byId('accounts', b.dataset.biz))); if ($('#bizSetup')) $('#bizSetup').onclick = bizSetup;
 }
 function accDetail(a) {
   const bal = balances()[a.id] || 0, g = ATYPES[a.type].g, money1 = live('accounts').find(x => ATYPES[x.type].g === 'money' && !x.archived && x.id !== a.id);
@@ -919,13 +946,14 @@ function accDetail(a) {
   acts.loan = [['Trả nợ gốc', { type: 'transfer', accountId: m1, toAccountId: a.id }], ['Vay thêm', { type: 'transfer', accountId: a.id, toAccountId: m1 }]];
   acts.lend = [['Cho vay thêm', { type: 'transfer', accountId: m1, toAccountId: a.id }], ['Thu nợ', { type: 'transfer', accountId: a.id, toAccountId: m1 }]];
   acts.asset = [];
+  acts.company = [['Nhận tạm ứng / hoàn tiền', { type: 'income', biz: 1, toAccountId: a.id, accountId: m1 }], ['Chi việc công ty', { type: 'expense', biz: 1, toAccountId: a.id }], ['Trả lại tiền thừa', { type: 'expense', biz: 1, ret: 1, toAccountId: a.id, accountId: m1 }], ['📋 Quyết toán tháng', null]];
   const hist = live('transactions').filter(t => t.accountId === a.id || t.toAccountId === a.id).sort((x, y) => y.date.localeCompare(x.date) || y.createdAt - x.createdAt).slice(0, 8);
   modal(`<h2>${esc(a.name)}<button class="x" data-x>×</button></h2>
     <div class="muted">${esc(ATYPES[a.type].n)}${a.note ? ' · ' + esc(a.note) : ''}</div>
-    <div class="amt" style="text-align:left;margin:6px 0 12px">${g === 'debt' ? 'Dư nợ ' + money(-bal) : money(bal)}</div>
+    <div class="amt" style="text-align:left;margin:6px 0 12px">${g === 'debt' ? 'Dư nợ ' + money(-bal) : g === 'company' ? fundText(bal) + ' ₫' : money(bal)}</div>
     <div class="row wrapx">${acts[a.type].map((x, i) => `<button class="btn sm" data-act="${i}">${x[0]}</button>`).join('')}<button class="btn sm" id="aAdj">Cập nhật ${g === 'debt' ? 'dư nợ' : 'giá trị'}</button><button class="btn sm" id="aEdit">Sửa</button></div>
     <div class="dayhead">Giao dịch gần đây</div><div class="list">${hist.length ? hist.map(txRow).join('') : '<div class="empty">Chưa có giao dịch</div>'}</div>`, true);
-  $$('#modal [data-act]').forEach(b => b.onclick = () => txForm(null, acts[a.type][b.dataset.act][1]));
+  $$('#modal [data-act]').forEach(b => b.onclick = () => { const p = acts[a.type][b.dataset.act][1]; p ? txForm(null, Object.assign({}, p)) : bizReport(a); });
   $('#aAdj').onclick = () => adjustForm(a); $('#aEdit').onclick = () => accForm(a);
   $$('#modal [data-tx]').forEach(b => b.onclick = () => txForm(byId('transactions', b.dataset.tx)));
 }
@@ -942,7 +970,7 @@ function accForm(a, ptype) {
     ${isNew ? '' : `<label class="row" style="margin-top:12px"><input type="checkbox" id="aArc" style="width:auto;min-height:0" ${a.archived ? 'checked' : ''}> Ẩn tài khoản này (không dùng nữa)</label>`}
     <div class="acts">${isNew ? '' : `<button class="btn dan" id="aDel">Xóa</button>`}<button class="btn pri" id="aSave">Lưu</button></div>`);
   bindAmt($('#aOpen')); bindAmt($('#aLim'));
-  const upd = () => { const ty = $('#aType').value, d = ATYPES[ty].g === 'debt'; $('#lOpen').textContent = d ? 'Dư nợ ban đầu (₫): số đang nợ lúc bắt đầu ghi sổ' : 'Số dư / giá trị ban đầu (₫)'; $('#wDebt').classList.toggle('hide', !d); $('#wLim').classList.toggle('hide', ty === 'loan'); };
+  const upd = () => { const ty = $('#aType').value, d = ATYPES[ty].g === 'debt'; $('#lOpen').textContent = d ? 'Dư nợ ban đầu (₫): số đang nợ lúc bắt đầu ghi sổ' : ty === 'company' ? 'Tiền công ty anh đang giữ lúc bắt đầu (₫), thường để 0' : 'Số dư / giá trị ban đầu (₫)'; $('#wDebt').classList.toggle('hide', !d); $('#wLim').classList.toggle('hide', ty === 'loan'); };
   $('#aType').onchange = upd; upd();
   $('#aSave').onclick = () => {
     a.name = $('#aName').value.trim(); if (!a.name) return toast('Nhập tên tài khoản');
@@ -952,6 +980,100 @@ function accForm(a, ptype) {
     put('accounts', a); closeModal(); render(); toast('Đã lưu');
   };
   if (!isNew) $('#aDel').onclick = async () => { if (await ask(used ? 'Xóa “' + a.name + '”?\n\nCác giao dịch đã ghi với tài khoản này vẫn được giữ nguyên (tiền đã trả từ tài khoản khác không bị cộng lại). Số dư / dư nợ của riêng tài khoản này sẽ không còn tính vào tài sản.' : 'Xóa “' + a.name + '”?')) { remove('accounts', a.id); closeModal(); render(); toast('Đã xóa ' + a.name); } };
+}
+
+/* =============== QUỸ CÔNG TY (TẠM ỨNG) =============== */
+function bizMonth(f, m) {
+  const r = { start: Number(f.opening) || 0, inn: 0, out: 0, ret: 0, items: [] };
+  live('transactions').filter(t => isBiz(t) && t.toAccountId === f.id && t.date).sort((a, b) => a.date.localeCompare(b.date) || a.createdAt - b.createdAt).forEach(t => {
+    const v = Number(t.amount) || 0, sign = t.type === 'bizin' ? 1 : -1;
+    if (t.date < m + '-01') r.start += sign * v;
+    else if (t.date.startsWith(m)) { if (t.type === 'bizin') r.inn += v; else if (t.type === 'bizout') r.out += v; else r.ret += v; r.items.push(t); }
+  });
+  live('transactions').filter(t => t.type === 'adjust' && t.accountId === f.id && t.date).forEach(t => { if (t.date < m + '-01') r.start += Number(t.amount) || 0; else if (t.date.startsWith(m)) r.inn += Number(t.amount) || 0; });
+  r.end = r.start + r.inn - r.out - r.ret;
+  return r;
+}
+function bizReport(f) {
+  if (!f) return;
+  let m = ui.month;
+  const draw = () => {
+    const r = bizMonth(f, m);
+    modal(`<h2>💼 Quyết toán ${esc(f.name)}<button class="x" data-x>×</button></h2>
+      <div class="row sp" style="margin-bottom:10px"><div class="monthnav"><button data-bm="-1" aria-label="Tháng trước">‹</button><span>${ymLabel(m)}</span><button data-bm="1" aria-label="Tháng sau">›</button></div></div>
+      <div class="list" style="font-size:14.5px">
+        <div class="item"><span class="tx"><b>Số dư đầu tháng</b><small>${r.start >= 0 ? 'Tiền công ty anh đang giữ' : 'Công ty đang nợ anh'}</small></span><span class="am">${fmt(r.start)}</span></div>
+        <div class="item"><span class="tx"><b>+ Công ty ứng / hoàn</b></span><span class="am pos">+${fmt(r.inn)}</span></div>
+        <div class="item"><span class="tx"><b>− Chi việc công ty</b></span><span class="am neg">−${fmt(r.out)}</span></div>
+        ${r.ret ? `<div class="item"><span class="tx"><b>− Đã trả lại công ty</b></span><span class="am neg">−${fmt(r.ret)}</span></div>` : ''}
+      </div>
+      <div class="note ${r.end >= 0 ? 'info' : 'warn'}" style="margin-top:10px"><div><b>Cuối ${ymLabel(m).toLowerCase()}: ${r.end >= 0 ? 'anh đang giữ ' + money(r.end) + ' tiền công ty' : 'công ty còn nợ anh ' + money(-r.end)}</b><br>${r.end >= 0 ? 'Chi tiếp cho việc công ty, hoặc bấm “Trả lại tiền thừa” khi hoàn ứng.' : 'Đề nghị công ty hoàn số này; khi nhận thì ghi “Nhận tạm ứng / hoàn tiền”.'}</div></div>
+      <div class="dayhead">Các khoản trong tháng (${r.items.length})</div>
+      <div class="list">${r.items.length ? r.items.slice().reverse().map(txRow).join('') : '<div class="empty">Chưa có khoản nào</div>'}</div>
+      <div class="acts"><button class="btn" id="bzAdd">+ Chi việc công ty</button><button class="btn pri" id="bzXls">Xuất Excel quyết toán</button></div>`, true);
+    $$('#modal [data-bm]').forEach(b => b.onclick = () => { m = addMonth(m, Number(b.dataset.bm)); draw(); });
+    $$('#modal [data-tx]').forEach(b => b.onclick = () => txForm(byId('transactions', b.dataset.tx)));
+    $('#bzAdd').onclick = () => txForm(null, { type: 'expense', biz: 1, toAccountId: f.id, date: m === ymOf(today()) ? today() : m + '-01' });
+    $('#bzXls').onclick = () => bizExcel(f, m, r);
+  };
+  draw();
+}
+async function bizExcel(f, m, r) {
+  const rows = [['QUYẾT TOÁN TẠM ỨNG – ' + f.name.toUpperCase(), '', '', '', ''], [ymLabel(m), '', '', '', ''], [], ['Số dư đầu tháng', '', r.start], ['Công ty ứng / hoàn', '', r.inn], ['Chi việc công ty', '', -r.out], ['Đã trả lại công ty', '', -r.ret], ['Số dư cuối tháng (dương: đang giữ, âm: công ty nợ)', '', r.end], [],
+    ['Ngày', 'Loại', 'Số tiền', 'Tài khoản', 'Nội dung']].concat(r.items.map(t => [t.date.split('-').reverse().join('/'), TYPE_VI[t.type], (t.type === 'bizin' ? 1 : -1) * (Number(t.amount) || 0), accName(t.accountId), t.note || '']));
+  const name = 'QuyetToan_' + f.name.replace(/[^\p{L}\d]+/gu, '') + '_' + m;
+  try {
+    if (!window.XLSX) await loadScript('https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js');
+    const ws = XLSX.utils.aoa_to_sheet(rows); ws['!cols'] = [{ wch: 14 }, { wch: 20 }, { wch: 16 }, { wch: 18 }, { wch: 40 }];
+    const wb = XLSX.utils.book_new(); XLSX.utils.book_append_sheet(wb, ws, 'Quyết toán'); XLSX.writeFile(wb, name + '.xlsx'); toast('Đã xuất file quyết toán');
+  } catch (e) { download(new Blob(['﻿' + rows.map(x => x.map(v => '"' + String(v == null ? '' : v).replace(/"/g, '""') + '"').join(',')).join('\r\n')], { type: 'text/csv;charset=utf-8' }), name + '.csv'); toast('Đã xuất file CSV (mở được bằng Excel)'); }
+}
+/** Thiết lập Quỹ công ty và chuyển dữ liệu cũ (tài khoản "Công ty", danh mục "Thanh toán công ty") sang đúng chỗ */
+function bizSetup() {
+  const accs = live('accounts').filter(a => !a.archived && ['money', 'save', 'asset'].includes(ATYPES[a.type].g));
+  const guessAcc = accs.find(a => /cong ty/.test(plain(a.name)));
+  const ecats = cats('expense'), guessCat = ecats.find(c => /cong ty/.test(plain(c.name)));
+  const bank = accs.find(a => a.type === 'bank' && a !== guessAcc) || accs.find(a => a !== guessAcc) || {};
+  const moneyOpts = sel => live('accounts').filter(a => !a.archived && ATYPES[a.type].g === 'money').map(a => `<option value="${esc(a.id)}" ${a.id === sel ? 'selected' : ''}>${ACC_ICON[a.type]} ${esc(a.name)}</option>`).join('');
+  const firstDate = ymOf(today()) + '-01';
+  modal(`<h2>💼 Thiết lập Quỹ công ty<button class="x" data-x>×</button></h2>
+    <div class="muted" style="font-size:13.5px">Tiền công ty ứng vào tài khoản của anh sẽ được theo dõi riêng: không tính là thu nhập, chi cho việc công ty không tính vào chi tiêu cá nhân.</div>
+    <label class="f"><span>Quỹ công ty</span><select id="bzSrc"><option value="">Tạo mới “Quỹ công ty”</option>${accs.map(a => `<option value="${esc(a.id)}" ${guessAcc && a.id === guessAcc.id ? 'selected' : ''}>Chuyển tài khoản “${esc(a.name)}” thành Quỹ công ty</option>`).join('')}</select></label>
+    <div id="bzOpenW" class="f"><span class="flabel" id="bzOpenL"></span><div class="row wrapx"><select id="bzBank" style="flex:1 1 160px">${moneyOpts(bank.id)}</select><input id="bzDate" type="date" value="${firstDate}" style="flex:1 1 140px"></div></div>
+    <label class="f"><span>Danh mục chi đang dùng cho việc công ty (nếu có)</span><select id="bzCat"><option value="">Không có</option>${ecats.map(c => `<option value="${esc(c.id)}" ${guessCat && c.id === guessCat.id ? 'selected' : ''}>${catIcon(c)} ${esc(c.name)} (${esc(c.group)})</option>`).join('')}</select></label>
+    <label class="row" style="margin-top:10px"><input type="checkbox" id="bzHide" checked style="width:auto;min-height:0"> Ẩn danh mục này và bỏ hạn mức của nó</label>
+    <div class="note info" style="margin-top:12px" id="bzSum"></div>
+    <div class="acts"><button class="btn" data-x>Để sau</button><button class="btn pri" id="bzGo">Thiết lập</button></div>`, true);
+  const plan = () => {
+    const src = byId('accounts', $('#bzSrc').value), cid = $('#bzCat').value, payAcc = $('#bzBank').value;
+    const open = src ? Number(src.opening) || 0 : 0;
+    const txs = live('transactions');
+    const fromSrc = src ? txs.filter(t => (t.accountId === src.id || t.toAccountId === src.id) && !isBiz(t)) : [];
+    const catTx = cid ? txs.filter(t => t.type === 'expense' && t.categoryId === cid) : [];
+    const exps = Array.from(new Set(catTx.concat(fromSrc.filter(t => t.type === 'expense' && t.accountId === src.id))));
+    const incs = fromSrc.filter(t => t.type === 'income' && t.accountId === src.id);
+    const other = fromSrc.filter(t => !exps.includes(t) && !incs.includes(t));
+    return { src, cid, payAcc, open, exps, incs, other, expSum: exps.reduce((s, t) => s + (Number(t.amount) || 0), 0) };
+  };
+  const show = () => {
+    const p = plan();
+    $('#bzOpenW').classList.toggle('hide', !p.src || p.open <= 0 && !p.exps.some(t => p.src && t.accountId === p.src.id));
+    $('#bzOpenL').textContent = p.src ? (p.open > 0 ? `Số dư ban đầu ${fmt(p.open)} của “${p.src.name}” là tiền công ty ứng vào tài khoản nào, ngày nào?` : `Các khoản đã chi từ “${p.src.name}” thực tế trả bằng tài khoản nào?`) : '';
+    $('#bzSum').innerHTML = `<div>Sẽ thực hiện:<br>• ${p.src ? `Đổi “${esc(p.src.name)}” thành Quỹ công ty` : 'Tạo “Quỹ công ty”'}${p.open > 0 ? `<br>• Ghi ${money(p.open)} là tiền công ty ứng vào ${esc(accName(p.payAcc))}` : ''}${p.exps.length ? `<br>• Chuyển <b>${p.exps.length} khoản chi (${money(p.expSum)})</b> sang “Chi việc công ty”, không còn tính vào chi tiêu cá nhân` : ''}${p.incs.length ? `<br>• Chuyển ${p.incs.length} khoản thu vào “${esc(p.src.name)}” thành tiền công ty ứng` : ''}${p.other.length ? `<br>• Giữ nguyên ${p.other.length} giao dịch chuyển tiền khác, anh xem lại sau` : ''}<br>Không xóa giao dịch nào.</div>`;
+  };
+  ['#bzSrc', '#bzCat', '#bzBank'].forEach(s => $(s).onchange = show); show();
+  $('#bzGo').onclick = () => {
+    const p = plan(); const fund = p.src ? Object.assign({}, p.src) : { id: uid(), name: 'Quỹ công ty', limit: 0, dueDay: 0, note: '', archived: 0, sort: live('accounts').length + 1 };
+    if (p.src && p.src.id === p.payAcc) return bad('#bzBank', 'Chọn tài khoản cá nhân khác với quỹ');
+    fund.type = 'company'; fund.opening = 0; fund.note = fund.note || 'Tiền công ty ứng trước';
+    put('accounts', fund, true);
+    if (p.open > 0) put('transactions', { id: uid(), date: $('#bzDate').value || today(), type: 'bizin', amount: p.open, accountId: p.payAcc, toAccountId: fund.id, categoryId: '', note: 'Tạm ứng (chuyển từ số dư ban đầu)', createdAt: Date.now() }, true);
+    p.exps.forEach(t => put('transactions', Object.assign({}, t, { type: 'bizout', accountId: p.src && t.accountId === p.src.id ? p.payAcc : t.accountId, toAccountId: fund.id }), true));
+    p.incs.forEach(t => put('transactions', Object.assign({}, t, { type: 'bizin', accountId: p.payAcc, toAccountId: fund.id, categoryId: '' }), true));
+    if (p.cid && $('#bzHide').checked) { const c = byId('categories', p.cid); if (c) put('categories', Object.assign({}, c, { archived: 1 }), true); live('budgets').filter(b => b.categoryId === p.cid).forEach(b => put('budgets', Object.assign({}, b, { amount: 0 }), true)); }
+    save(); scheduleSync(); closeModal(); render();
+    toast('Đã thiết lập ' + fund.name + ': ' + fundText(balances()[fund.id] || 0) + ' ₫');
+  };
 }
 
 /* =============== TRANG: NGÂN SÁCH =============== */
@@ -1038,7 +1160,7 @@ function pRep() {
 }
 function loadScript(src) { return new Promise((res, rej) => { const s = document.createElement('script'); s.src = src; s.onload = res; s.onerror = rej; document.head.appendChild(s); }); }
 function download(blob, name) { const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = name; document.body.appendChild(a); a.click(); setTimeout(() => { URL.revokeObjectURL(a.href); a.remove(); }, 500); }
-const TYPE_VI = { income: 'Thu', expense: 'Chi', transfer: 'Chuyển tiền', adjust: 'Cập nhật giá trị' };
+const TYPE_VI = { income: 'Thu', expense: 'Chi', transfer: 'Chuyển tiền', adjust: 'Cập nhật giá trị', bizin: 'Nhận tiền công ty', bizout: 'Chi việc công ty', bizret: 'Trả lại tiền công ty' };
 function exportTables(y) {
   const d = yearData(y), bal = balances();
   const sum = [['Khoản mục', 'Mục tiêu/tháng'].concat(d.months.map((_, i) => 'Tháng ' + (i + 1)), ['Cả năm'])].concat(d.rows.map(r => [r.label, r.target || ''].concat(r.vals, [r.total])));
