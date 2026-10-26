@@ -1,0 +1,235 @@
+<!doctype html>
+<html lang="vi">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>MoneyFlow – Hướng dẫn sử dụng</title>
+<link rel="icon" href="icon-192.png">
+<style>
+:root{--bg:#f3f6f4;--card:#fff;--ink:#14201c;--muted:#5d6d67;--line:#dfe6e2;--brand:#0e7c66;--tint:#e6f3ef;--neg:#c2410c;--pos:#15803d}
+@media (prefers-color-scheme:dark){:root{--bg:#0e1412;--card:#171f1c;--ink:#e8f0ed;--muted:#98a9a3;--line:#27332f;--brand:#3cc7a6;--tint:#16302a;--neg:#fb923c;--pos:#4ade80}}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);font:16px/1.65 system-ui,-apple-system,"Segoe UI",Roboto,Arial,sans-serif}
+main{max-width:820px;margin:0 auto;padding:28px 16px 64px}
+header{display:flex;align-items:center;gap:12px;margin-bottom:18px}
+header img{width:48px;height:48px;border-radius:12px}
+.card{background:var(--card);border:1px solid var(--line);border-radius:16px;padding:22px;margin-bottom:16px}
+h1{font-size:26px;margin:0 0 4px;line-height:1.3}
+h2{font-size:20px;margin:0 0 10px;scroll-margin-top:16px}
+h3{font-size:16.5px;margin:22px 0 6px}
+.muted{color:var(--muted);font-size:14px}
+a{color:var(--brand)}
+ul,ol{padding-left:22px}li{margin:3px 0}
+b{font-weight:650}
+.toc{display:flex;flex-wrap:wrap;gap:8px;margin-top:14px}
+.toc a{border:1px solid var(--line);border-radius:999px;padding:5px 12px;text-decoration:none;font-size:14px;background:var(--card)}
+.note{background:var(--tint);border-radius:12px;padding:12px 14px;margin:12px 0}
+.warn{border-left:4px solid var(--neg)}
+.tbl{overflow-x:auto;margin:10px 0}
+table{border-collapse:collapse;width:100%;font-size:14.5px}
+th,td{border-bottom:1px solid var(--line);padding:8px 10px;text-align:left;vertical-align:top}
+th{color:var(--muted);font-weight:600;font-size:13px;text-transform:uppercase;letter-spacing:.03em}
+/* Sơ đồ web */
+.map{display:grid;gap:10px}
+.row{display:grid;gap:10px;grid-template-columns:repeat(auto-fit,minmax(170px,1fr))}
+.node{border:1.5px solid var(--line);border-radius:12px;padding:10px 12px;background:var(--card)}
+.node b{display:block;margin-bottom:2px}
+.node span{display:block;color:var(--muted);font-size:13.5px;line-height:1.45}
+.node.acc{border-color:var(--brand);background:var(--tint)}
+.node.acc span{color:var(--ink)}
+.lvl{font-size:12.5px;color:var(--muted);text-transform:uppercase;letter-spacing:.04em;margin:6px 0 -2px}
+.arrow{text-align:center;color:var(--muted);font-size:18px;line-height:1}
+.faq b{display:block;margin-top:14px}
+.faq p{margin:2px 0 0}
+footer{text-align:center}
+@media print{.toc{display:none}.card{break-inside:avoid}}
+</style>
+</head>
+<body>
+<main>
+<header><img src="icon-192.png" alt=""><div><b style="font-size:20px">MoneyFlow</b><div class="muted">Quản lý dòng tiền Thông Minh - Hiện Đại - Chuyên Nghiệp</div></div></header>
+
+<div class="card">
+  <h1>Hướng dẫn sử dụng</h1>
+  <div class="muted">Cập nhật: 26/10/2026</div>
+  <p>MoneyFlow là web quản lý tiền cá nhân: ghi thu chi, theo dõi số dư từng nguồn tiền, nợ, quỹ và ngân sách hằng tháng. Dùng được trên máy tính và điện thoại, cài được như một ứng dụng.</p>
+  <ul>
+    <li><b>Mỗi người một sổ riêng:</b> đăng nhập bằng tài khoản Google, người khác không xem hay sửa được dữ liệu của bạn.</li>
+    <li><b>Cần quản trị viên duyệt:</b> lần đầu đăng nhập, tài khoản ở trạng thái "Chờ duyệt" cho tới khi quản trị viên bật.</li>
+    <li><b>Dữ liệu tự lưu và đồng bộ:</b> mọi thiết bị dùng chung một sổ; mất mạng vẫn ghi được, có mạng lại thì tự gửi lên. Máy chủ sao lưu mỗi đêm, giữ 14 bản gần nhất.</li>
+    <li><b>Tính đúng tiền thật:</b> chuyển tiền giữa các tài khoản, trả nợ gốc, bỏ tiền vào quỹ hay tiền của công ty đều <b>không</b> bị tính là thu hay chi.</li>
+  </ul>
+  <nav class="toc">
+    <a href="#map">Sơ đồ web</a><a href="#start">Bắt đầu</a><a href="#tx">Ghi giao dịch</a><a href="#debt">Trả nợ</a><a href="#acc">Tài khoản</a><a href="#biz">Quỹ công ty</a><a href="#hold">Trả hộ</a><a href="#bud">Ngân sách</a><a href="#rep">Báo cáo</a><a href="#set">Cài đặt</a><a href="#faq">Hỏi đáp</a>
+  </nav>
+</div>
+
+<section class="card" id="map">
+  <h2>Sơ đồ web</h2>
+  <div class="map">
+    <div class="row">
+      <div class="node"><b>Đăng nhập Google</b><span>Lần đầu: chờ quản trị viên duyệt rồi mới vào được</span></div>
+      <div class="node"><b>Thanh điều hướng</b><span>Thanh dưới (điện thoại) hoặc cột trái (máy tính)</span></div>
+      <div class="node acc"><b>+ Tạo giao dịch</b><span>Mở từ mọi trang: Chi · Thu · Chuyển tiền · Trả nợ · Quét hóa đơn AI</span></div>
+    </div>
+    <div class="arrow">↓</div>
+    <div class="lvl">Trang chính</div>
+    <div class="row">
+      <div class="node"><b>Tổng quan</b><span>Thu, chi tháng này · Số dư từng tài khoản · Hạn mức sắp vượt</span></div>
+      <div class="node"><b>Giao dịch</b><span>Danh sách theo tháng · Lọc, tìm ghi chú · Bấm vào để sửa, xóa</span></div>
+      <div class="node"><b>Ngân sách</b><span>Đã chi / hạn mức theo từng danh mục · Cảnh báo sắp vượt</span></div>
+      <div class="node"><b>Thêm</b><span>Menu mở 3 trang bên dưới</span></div>
+    </div>
+    <div class="arrow">↓</div>
+    <div class="lvl">Trong menu Thêm</div>
+    <div class="row">
+      <div class="node"><b>Tài khoản</b><span>Số dư theo nhóm · Sổ chi tiết từng tài khoản · Quỹ, nợ, công ty, trả hộ</span></div>
+      <div class="node"><b>Báo cáo</b><span>Thu chi cả năm, tiết kiệm · Bảng danh mục theo tháng · Xuất Excel, in / lưu PDF</span></div>
+      <div class="node"><b>Cài đặt</b><span>Tên hiển thị, avatar, ảnh nền · Danh mục và hạn mức chi · Duyệt người dùng (admin)</span></div>
+    </div>
+  </div>
+  <p class="muted" style="margin-bottom:0">Trên điện thoại, thanh dưới có Tổng quan, Giao dịch, nút +, Ngân sách và Thêm. Trên máy tính, cả 6 trang nằm ở cột trái.</p>
+</section>
+
+<section class="card" id="start">
+  <h2>Bắt đầu sử dụng</h2>
+  <p>Chỉ cần làm một lần, khoảng 10 phút.</p>
+  <div class="note warn"><b>Quan trọng:</b> mở link bằng <b>Safari</b> (iPhone) hoặc <b>Chrome</b> (Android, máy tính). Nếu mở link ngay trong Zalo, Messenger hay Facebook, trang đăng nhập Google sẽ trắng trơn. Khi đó bấm <b>•••</b> ở góc trên → <b>Mở bằng trình duyệt</b>.</div>
+  <ol>
+    <li><b>Đăng nhập:</b> mở <a href="https://anhtuan22775-boop.github.io/MoneyFlow/">anhtuan22775-boop.github.io/MoneyFlow</a>, bấm <b>Đăng nhập bằng Google</b>. Nếu thấy "Chờ duyệt", nhắn quản trị viên bật tài khoản rồi đăng nhập lại.</li>
+    <li><b>Cài như ứng dụng (nên làm):</b>
+      <ul>
+        <li>iPhone (Safari): nút Chia sẻ → <b>Thêm vào Màn hình chính</b>.</li>
+        <li>Android (Chrome): menu ⋮ → <b>Cài đặt ứng dụng</b> / Thêm vào màn hình chính.</li>
+        <li>Máy tính (Chrome/Edge): biểu tượng cài đặt ở cuối thanh địa chỉ.</li>
+      </ul></li>
+    <li><b>Tạo tài khoản tiền:</b> vào <b>Thêm → Tài khoản</b>, bấm <b>+ Tài khoản</b> cho từng nguồn tiền (tiền mặt, ngân hàng, MoMo…). Nhập <b>số dư hiện tại</b> làm số dư ban đầu.</li>
+    <li><b>Khai báo nợ:</b> thẻ tín dụng, MoMo Trả Sau, khoản vay → nhập <b>dư nợ hiện tại</b>, hạn mức và ngày đến hạn trả (nếu có).</li>
+    <li><b>Kiểm tra danh mục:</b> <b>Cài đặt → Danh mục thu chi</b> đã có sẵn danh sách mẫu; thêm, đổi tên hoặc ẩn mục không dùng.</li>
+    <li><b>Đặt ngân sách (tùy chọn):</b> <b>Cài đặt → Hạn mức chi theo danh mục</b>, nhập mức chi tối đa mỗi tháng.</li>
+    <li><b>Cá nhân hóa (tùy chọn):</b> tên hiển thị, avatar, ảnh nền kính mờ trong <b>Cài đặt</b>.</li>
+  </ol>
+  <p class="muted" style="margin-bottom:0">Muốn xem thử trước: ở màn hình đăng nhập bấm <b>Dùng thử không cần đăng nhập</b>, vào Cài đặt chọn <b>Nạp dữ liệu mẫu</b>, xem xong bấm <b>Xóa dữ liệu dùng thử</b>. Dữ liệu dùng thử chỉ nằm trên máy đó.</p>
+</section>
+
+<section class="card" id="tx">
+  <h2>Ghi một giao dịch</h2>
+  <p>Bấm nút <b>+</b> ở giữa thanh dưới (điện thoại) hoặc <b>Tạo giao dịch</b> (máy tính), chọn loại, nhập số tiền rồi bấm <b>Lưu</b>. Form tự đóng sau khi lưu.</p>
+  <div class="tbl"><table>
+    <tr><th>Loại</th><th>Dùng khi</th><th>Tính vào thu chi?</th></tr>
+    <tr><td><b>Chi</b></td><td>Mua sắm, ăn uống, hóa đơn… (kể cả quẹt thẻ tín dụng, MoMo Trả Sau)</td><td>Có, là chi</td></tr>
+    <tr><td><b>Thu</b></td><td>Lương, thưởng, tiền được cho…</td><td>Có, là thu</td></tr>
+    <tr><td><b>Chuyển tiền</b></td><td>Rút ATM, nạp MoMo, chuyển sang sổ tiết kiệm</td><td>Không</td></tr>
+    <tr><td><b>Trả nợ</b></td><td>Thanh toán thẻ tín dụng, Trả Sau, khoản vay</td><td>Không (trả nợ gốc)</td></tr>
+  </table></div>
+  <h3>Mẹo nhập nhanh</h3>
+  <ul>
+    <li>Nút <b>+ 000</b>, <b>50k</b>, <b>100k</b>… để điền số tiền nhanh.</li>
+    <li><b>📷 Quét hóa đơn bằng AI:</b> chụp bill hoặc ảnh chuyển khoản, web tự điền số tiền, ngày và đề xuất danh mục. Kiểm tra lại rồi bấm Lưu. Mỗi người quét tối đa 40 lần/ngày.</li>
+    <li>Web nhớ tài khoản bạn dùng lần trước.</li>
+    <li>Sửa hoặc xóa: bấm vào giao dịch trong trang <b>Giao dịch</b>.</li>
+  </ul>
+</section>
+
+<section class="card" id="debt">
+  <h2>Trả nợ thẻ tín dụng, Trả Sau, khoản vay</h2>
+  <ul>
+    <li>Bấm <b>Thanh toán</b> cạnh khoản nợ (ở Tổng quan hoặc Tài khoản), chọn nguồn tiền trả. <b>Trả hết dư nợ</b> điền sẵn toàn bộ số nợ.</li>
+    <li>Nợ hiện số dương <span style="color:var(--neg);font-weight:650">màu đỏ</span>; trả lố tay thì hiện <span style="color:var(--pos);font-weight:650">Dư …</span> màu xanh.</li>
+    <li>Khoản vay trả hết sẽ <b>tự ẩn</b> (không xóa), lịch sử vẫn giữ. Xem lại ở cuối trang Tài khoản, mục <b>Xem … tài khoản đã ẩn / khoản vay đã trả xong</b>. Thẻ tín dụng và Trả Sau không tự ẩn.</li>
+    <li>Tiền lãi, phí trả chậm: ghi riêng là một khoản <b>Chi</b>.</li>
+  </ul>
+</section>
+
+<section class="card" id="acc">
+  <h2>Quản lý tài khoản</h2>
+  <p>Trang <b>Tài khoản</b> chia theo nhóm:</p>
+  <div class="tbl"><table>
+    <tr><th>Nhóm</th><th>Gồm</th><th>Ghi chú</th></tr>
+    <tr><td><b>Tiền đang có</b></td><td>Tiền mặt, ngân hàng, ví điện tử</td><td>Tiền xài được ngay</td></tr>
+    <tr><td><b>Quỹ mục tiêu</b></td><td>Quỹ khẩn cấp, quỹ du lịch…</td><td>Bỏ vào / rút ra không tính thu chi; có mục tiêu và nhắc trích quỹ hằng tháng</td></tr>
+    <tr><td><b>Tiết kiệm &amp; đầu tư</b></td><td>Sổ tiết kiệm, chứng khoán, vàng</td><td>Cập nhật giá trị khi thay đổi</td></tr>
+    <tr><td><b>Tài sản &amp; cho vay</b></td><td>Xe, nhà, tiền cho người khác mượn</td><td></td></tr>
+    <tr><td><b>Nợ phải trả</b></td><td>Thẻ tín dụng, trả sau, khoản vay</td><td>Hiện nút Thanh toán</td></tr>
+    <tr><td><b>Quỹ công ty (tạm ứng)</b></td><td>Tiền công ty ứng cho bạn chi việc công</td><td>Không tính vào thu chi cá nhân</td></tr>
+    <tr><td><b>Giữ hộ / trả hộ</b></td><td>Người khác nhờ bạn trả nợ giúp</td><td>Không tính vào thu chi cá nhân</td></tr>
+  </table></div>
+  <ul>
+    <li>Bấm vào tên tài khoản để xem <b>Sổ chi tiết</b>: đầu kỳ, tiền vào, tiền ra, cuối kỳ theo tháng, xuất được Excel.</li>
+    <li><b>Cập nhật số dư / dư nợ:</b> khi số trên web lệch với thực tế, nhập số đúng, web tự ghi phần chênh lệch.</li>
+    <li>✏️ để sửa tên, loại, hạn mức, ngày đến hạn, hoặc ẩn tài khoản không dùng nữa.</li>
+  </ul>
+</section>
+
+<section class="card" id="biz">
+  <h2>Quỹ công ty (tạm ứng)</h2>
+  <p>Dành cho người được công ty ứng tiền để chi việc công rồi quyết toán.</p>
+  <ol>
+    <li>Trang Tài khoản → <b>Thiết lập Quỹ công ty</b>.</li>
+    <li>Khi công ty chuyển tiền ứng hoặc bạn chi hộ công ty: tạo giao dịch, tích <b>💼 Tiền của công ty</b>.</li>
+    <li>Quỹ hiển thị <b>Số dư khả dụng</b> (tiền công ty bạn đang giữ) hoặc <b>Công ty nợ</b> (bạn đã ứng tiền riêng ra). Báo cáo quyết toán xuất được Excel.</li>
+  </ol>
+</section>
+
+<section class="card" id="hold">
+  <h2>Giữ hộ / trả hộ</h2>
+  <p style="margin-bottom:0">Người khác chuyển tiền nhờ bạn trả khoản vay của họ. Bấm <b>+ Trả hộ</b>, nhập tổng dư nợ của họ và số tiền mỗi kỳ. Tiền họ gửi và tiền bạn trả hộ không tính vào thu chi của bạn. Nợ của chính bạn thì giữ là <b>Khoản vay</b>, không dùng mục này.</p>
+</section>
+
+<section class="card" id="bud">
+  <h2>Ngân sách và cảnh báo</h2>
+  <ul>
+    <li>Đặt hạn mức từng danh mục trong <b>Cài đặt → Hạn mức chi theo danh mục</b>; áp dụng cho mọi tháng.</li>
+    <li><b>Cảnh báo khi dùng tới bao nhiêu %</b>: mức báo sớm (ví dụ 80%).</li>
+    <li><b>Mục tiêu chi tối đa bao nhiêu % thu nhập</b>: phần còn lại là tiết kiệm cần đạt, hiện ở Tổng quan.</li>
+    <li>Trang <b>Ngân sách</b> cho thấy đã chi / hạn mức từng danh mục; Tổng quan liệt kê danh mục sắp hoặc đã vượt.</li>
+  </ul>
+</section>
+
+<section class="card" id="rep">
+  <h2>Báo cáo</h2>
+  <p style="margin-bottom:0">Trang <b>Báo cáo</b> (trong <b>Thêm</b>): thu, chi, số để dành và tỷ lệ tiết kiệm cả năm; bảng từng danh mục theo tháng; chi tiêu lớn nhất trong tháng. Nút <b>Xuất Excel</b> và <b>In / lưu PDF</b>.</p>
+</section>
+
+<section class="card" id="set">
+  <h2>Cài đặt</h2>
+  <ul>
+    <li><b>Tài khoản đăng nhập:</b> tên hiển thị, avatar.</li>
+    <li><b>Danh mục thu chi:</b> thêm, sửa tên, biểu tượng, nhóm; ẩn mục không dùng.</li>
+    <li><b>Giao diện:</b> sáng / tối, ảnh nền và hiệu ứng kính mờ (chỉ lưu trên máy đang dùng).</li>
+    <li><b>Dữ liệu:</b> <b>Tải lại toàn bộ từ máy chủ</b> khi thấy số liệu lệch giữa các máy.</li>
+    <li><b>Quản lý người dùng</b> (chỉ quản trị viên): duyệt hoặc khóa tài khoản, tối đa 10 người.</li>
+  </ul>
+</section>
+
+<section class="card faq" id="faq">
+  <h2>Câu hỏi thường gặp</h2>
+  <b>Mở link xong trang đăng nhập Google bị trắng?</b>
+  <p>Bạn đang mở trong Zalo, Messenger hoặc Facebook. Google chặn đăng nhập trong các app này. Bấm <b>•••</b> ở góc trên → <b>Mở bằng trình duyệt</b> (Safari / Chrome) rồi đăng nhập lại.</p>
+  <b>Quẹt thẻ tín dụng ghi thế nào?</b>
+  <p>Ghi <b>Chi</b>, chọn tài khoản là thẻ. Khi trả tiền thẻ thì dùng <b>Trả nợ</b>, khoản này không bị tính chi lần hai.</p>
+  <b>Rút tiền ATM, nạp MoMo có bị tính là chi không?</b>
+  <p>Không, miễn là ghi bằng <b>Chuyển tiền</b>.</p>
+  <b>Số dư trên web lệch với ngân hàng?</b>
+  <p>Mở tài khoản đó → <b>Cập nhật số dư</b>, nhập số đúng. Phần chênh lệch không tính vào thu chi.</p>
+  <b>Máy này thấy giao dịch, máy kia chưa thấy?</b>
+  <p>Bấm nút đồng bộ (chấm tròn góc trên bên phải). Vẫn lệch thì vào <b>Cài đặt → Tải lại toàn bộ từ máy chủ</b>.</p>
+  <b>Mất mạng có ghi được không?</b>
+  <p>Có. Giao dịch lưu tạm trên máy và tự gửi lên khi có mạng lại.</p>
+  <b>Khoản vay trả hết biến đâu mất?</b>
+  <p>Nó được ẩn, không xóa. Cuối trang Tài khoản bấm <b>Xem … khoản vay đã trả xong</b>. Xóa một lần trả hoặc vay thêm thì nó tự hiện lại.</p>
+  <b>Xóa nhầm giao dịch có lấy lại được không?</b>
+  <p>Web luôn hỏi lại trước khi xóa. Nếu đã xóa, nhắn quản trị viên: máy chủ có bản sao lưu mỗi đêm trong 14 ngày.</p>
+  <b>Người khác có xem được sổ của tôi không?</b>
+  <p>Không. Mỗi người có file dữ liệu riêng. Chi tiết ở trang <a href="privacy.html">Chính sách quyền riêng tư</a>.</p>
+  <b>Không thấy bản mới sau khi web cập nhật?</b>
+  <p>Đóng hẳn app rồi mở lại, hoặc tải lại trang 1–2 lần.</p>
+</section>
+
+<footer class="muted">
+  Cần hỗ trợ: <a href="mailto:anhtuan22775@gmail.com">anhtuan22775@gmail.com</a><br>
+  <a href="./">← Về trang MoneyFlow</a> · <a href="privacy.html">Chính sách quyền riêng tư</a>
+</footer>
+</main>
+</body>
+</html>

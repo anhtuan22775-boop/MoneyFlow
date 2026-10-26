@@ -635,6 +635,7 @@ function showLogin(msg) {
       <div class="row" style="justify-content:center"><button class="btn pri" id="recheck">Kiểm tra lại</button><button class="btn" id="otheracc">Dùng tài khoản khác</button></div>`
     : `<div id="gbtn"></div><div style="margin-top:10px"><a href="privacy.html" style="color:var(--muted);font-size:13px">Chính sách quyền riêng tư</a></div>${READY ? '' : '<div class="note info" style="text-align:left"><div>Trang web chưa được nối với máy chủ (file <b>config.js</b> còn trống). Bạn vẫn có thể bấm <b>Dùng thử</b> để xem ứng dụng, dữ liệu chỉ lưu trên máy này.</div></div>'}
       <div class="mt"><button class="btn" id="demo">Dùng thử không cần đăng nhập</button></div>`}
+    <div style="margin-top:14px"><a class="btn" href="huong-dan.html" style="text-decoration:none;color:var(--ink)">📖 Hướng dẫn sử dụng</a></div>
   </div>`;
   if (waiting) {
     $('#recheck').onclick = async () => { try { await api('sync', { since: Date.now(), changes: {} }); user.status = 'active'; lsSet('stc_user', JSON.stringify(user)); start(); } catch (e) { toast(e.code === 'PENDING' ? 'Chưa được duyệt' : e.message); } };
@@ -1409,6 +1410,7 @@ function pSet() {
     <div class="row" style="gap:14px;margin-bottom:6px">${avatarHtml(64)}<button class="btn sm" id="sAv">Đổi avatar</button></div>
     <label class="f" style="margin-top:0"><span>Tên hiển thị (hiện ở góc trái màn hình)</span><div class="row"><input id="sName" maxlength="40" value="${esc(displayName())}" placeholder="Nhập tên bạn muốn hiển thị"><button class="btn pri" id="sNameSave" style="flex:none">Lưu tên</button></div></label>
     <div class="row sp wrapx" style="margin-top:14px"><div><b>${esc(user.name || '')}</b><div class="muted">${demo ? 'Chế độ dùng thử: dữ liệu chỉ nằm trên máy này' : esc(user.email)}</div></div><button class="btn" id="sOut">${demo ? 'Thoát dùng thử' : 'Đăng xuất'}</button></div></div>
+  <div class="card"><div class="row sp wrapx" style="gap:10px"><div><h2 style="margin:0">Hướng dẫn sử dụng</h2><div class="muted">Sơ đồ web, cách ghi giao dịch, trả nợ, quỹ và hỏi đáp</div></div><a class="btn pri" href="huong-dan.html" style="text-decoration:none;flex:none">📖 Mở hướng dẫn</a></div></div>
   ${user.isAdmin ? `<div class="card"><h2>Quản lý người dùng <button class="btn sm" id="sAdm">Tải danh sách</button></h2><div id="admBox" class="muted">Duyệt hoặc khóa người dùng. Người mới đăng nhập lần đầu sẽ ở trạng thái “Chờ duyệt”.</div></div>` : ''}
   <div class="card"><h2>Danh mục thu chi <button class="btn sm" id="sCat">+ Danh mục</button></h2><div id="catBox"></div></div>
   <div class="card"><h2>Hạn mức chi theo danh mục <span class="pill" id="limTot"></span></h2>
