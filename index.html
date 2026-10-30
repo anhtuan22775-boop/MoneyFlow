@@ -171,6 +171,7 @@ button.item:hover{background:var(--soft);border-radius:8px}
 .item .tx small{display:block;color:var(--muted);font-size:12.5px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .item .am{font-weight:700;font-variant-numeric:tabular-nums;white-space:nowrap;text-align:right}
 .item .am small{display:block;font-weight:500;color:var(--muted);font-size:12px}
+.item .am small.bnote{max-width:46vw;overflow:hidden;text-overflow:ellipsis;margin-left:auto}.item .am small.bnote.neg{color:var(--neg)}
 .irow{display:flex;align-items:center;gap:8px;border-bottom:1px solid var(--line)}.irow:last-child{border-bottom:0}.irow .item{border-bottom:0;flex:1;min-width:0}
 .note{align-items:center}
 .sideuser{display:flex;align-items:center;gap:10px;padding:8px 12px;font-weight:600;font-size:14px;min-width:0}.sideuser span:last-child{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.av{border-radius:50%;background:var(--brand);color:#fff;display:grid;place-items:center;font-weight:800;flex:none;overflow:hidden;line-height:1}.av img{width:100%;height:100%;object-fit:cover}
@@ -752,7 +753,26 @@ function loanCheck(ids) {
     else if (b < 0 && a.archived) put('accounts', Object.assign({}, a, { archived: 0 })); });
   return hidden;
 }
-function txRow(t) {
+/* Số dư của từng tài khoản ngay sau mỗi giao dịch (giống app ngân hàng / MoMo) */
+function runBals() {
+  const run = {}, out = {};
+  live('accounts').forEach(a => run[a.id] = Number(a.opening) || 0);
+  live('transactions').filter(t => t.date).sort((x, y) => x.date.localeCompare(y.date) || x.createdAt - y.createdAt).forEach(t => {
+    const m = {};
+    [t.accountId, t.toAccountId].forEach(id => { if (id && id in run) { run[id] += eff(t, id); m[id] = run[id]; } });
+    out[t.id] = m;
+  });
+  return out;
+}
+function balNote(t, rb, prefer) {
+  const m = rb && rb[t.id]; if (!m) return '';
+  const id = prefer && prefer in m ? prefer : t.accountId in m ? t.accountId : t.toAccountId;
+  const a = byId('accounts', id); if (!a || !(id in m)) return '';
+  const b = m[id], who = id === t.accountId ? '' : ' ' + a.name;
+  if (isDebt(a)) return `<small class="bnote">${b > 0 ? 'Trả dư' + esc(who) + ': ' + fmt(b) : 'Dư nợ' + esc(who) + ': ' + fmt(-b)}</small>`;
+  return `<small class="bnote ${b < 0 ? 'neg' : ''}">Số dư${esc(who)}: ${fmt(b)}</small>`;
+}
+function txRow(t, rb, prefer) {
   const v = Number(t.amount) || 0;
   let ic, cls, title, sub, am;
   if (t.type === 'income') { ic = catIconById(t.categoryId); cls = 'in'; title = catName(t.categoryId); sub = accName(t.accountId); am = `<span class="pos">+${fmt(v)}</span>`; }
@@ -764,7 +784,7 @@ function txRow(t) {
   else if (t.type === 'bizout') { ic = '💼'; cls = ''; title = 'Chi việc công ty'; sub = 'Trả bằng ' + accName(t.accountId); am = `<span class="muted">−${fmt(v)}</span>`; }
   else if (t.type === 'bizret') { ic = '💼'; cls = ''; title = 'Trả lại tiền công ty'; sub = 'Từ ' + accName(t.accountId); am = `<span class="muted">−${fmt(v)}</span>`; }
   else { ic = '≈'; cls = ''; title = 'Cập nhật giá trị'; sub = accName(t.accountId); am = (v >= 0 ? '+' : '−') + fmt(Math.abs(v)); }
-  return `<button class="item" data-tx="${esc(t.id)}"><span class="ic ${cls}">${ic}</span><span class="tx"><b>${esc(title)}</b><small>${esc(sub)}${t.note ? ' · ' + esc(t.note) : ''}</small></span><span class="am">${am}</span></button>`;
+  return `<button class="item" data-tx="${esc(t.id)}"><span class="ic ${cls}">${ic}</span><span class="tx"><b>${esc(title)}</b><small>${esc(sub)}${t.note ? ' · ' + esc(t.note) : ''}</small></span><span class="am">${am}${balNote(t, rb, prefer)}</span></button>`;
 }
 function bindTx() { $$('#main [data-tx]').forEach(b => b.onclick = () => txForm(byId('transactions', b.dataset.tx))); }
 function pHome() {
@@ -828,9 +848,10 @@ function pTx() {
     const list = live('transactions').filter(t => t.date && t.date.startsWith(ui.month) && (!f.type || t.type === f.type || (f.type === 'biz' && isBiz(t))) && (!f.acc || t.accountId === f.acc || t.toAccountId === f.acc) && (!f.cat || t.categoryId === f.cat) && (!q || (t.note || '').toLowerCase().includes(q) || catName(t.categoryId).toLowerCase().includes(q)))
       .sort((a, b) => b.date.localeCompare(a.date) || b.createdAt - a.createdAt);
     let inc = 0, exp = 0, html = '', day = '';
+    const rb = runBals();
     const dayNet = {};
     list.forEach(t => { const v = Number(t.amount) || 0; if (t.type === 'income') { inc += v; dayNet[t.date] = (dayNet[t.date] || 0) + v; } if (t.type === 'expense') { exp += v; dayNet[t.date] = (dayNet[t.date] || 0) - v; } });
-    list.forEach(t => { if (t.date !== day) { day = t.date; html += `<div class="dayhead"><span>${dLabel(day)}</span><span class="num">${dayNet[day] ? (dayNet[day] > 0 ? '+' : '−') + fmt(Math.abs(dayNet[day])) : ''}</span></div>`; } html += txRow(t); });
+    list.forEach(t => { if (t.date !== day) { day = t.date; html += `<div class="dayhead"><span>${dLabel(day)}</span><span class="num">${dayNet[day] ? (dayNet[day] > 0 ? '+' : '−') + fmt(Math.abs(dayNet[day])) : ''}</span></div>`; } html += txRow(t, rb, f.acc); });
     $('#txlist').innerHTML = html || '<div class="empty">Không có giao dịch nào trong tháng này</div>';
     $('#txsum').innerHTML = `${list.length} giao dịch · Thu <b class="pos num">${fmt(inc)}</b> · Chi <b class="neg num">${fmt(exp)}</b>`;
     bindTx();
