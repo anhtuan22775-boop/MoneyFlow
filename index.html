@@ -303,6 +303,7 @@ function eff(t, id) {
   }
   return 0;
 }
+const stmtDay = id => Math.max(0, Math.min(31, Number(settingStr('stmt:' + id)) || 0));
 const fundPlan = id => { const r = (settingStr('fundplan:' + id) || '').split('|'); return { amount: Number(r[0]) || 0, day: Number(r[1]) || 0 }; };
 const isBiz = t => t && (t.type === 'bizin' || t.type === 'bizout' || t.type === 'bizret');
 const funds = () => live('accounts').filter(a => a.type === 'company' || a.type === 'hold');
@@ -558,7 +559,16 @@ function dueAlerts(bal) {
     let due = new Date(now.getFullYear(), now.getMonth(), Math.min(d, new Date(now.getFullYear(), now.getMonth() + 1, 0).getDate()));
     if (iso(due) < iso(now)) due = new Date(now.getFullYear(), now.getMonth() + 1, Math.min(d, new Date(now.getFullYear(), now.getMonth() + 2, 0).getDate()));
     const days = Math.round((new Date(iso(due)) - new Date(iso(now))) / 864e5);
-    if (days <= 7) out.push({ a, owe, days, due });
+    if (days > 7) return;
+    const sd = stmtDay(a.id);
+    if (!sd) return out.push({ a, owe, pay: owe, days, due });
+    /* Có ngày kết toán: chỉ nhắc phần nợ phát sinh TRƯỚC ngày kết toán, trừ đi số đã trả sau ngày đó */
+    const sm = sd < d ? due.getMonth() : due.getMonth() - 1, sy = due.getFullYear();
+    const st = iso(new Date(sy, sm, Math.min(sd, new Date(sy, sm + 1, 0).getDate())));
+    let before = Number(a.opening) || 0, paid = 0;
+    live('transactions').forEach(t => { if (!t.date || (t.accountId !== a.id && t.toAccountId !== a.id)) return; const e = eff(t, a.id); if (t.date < st) before += e; else if (e > 0) paid += e; });
+    const pay = Math.min(owe, Math.max(0, -before - paid));
+    if (pay > 0) out.push({ a, owe, pay, days, due, st });
   });
   return out.sort((x, y) => x.days - y.days);
 }
@@ -798,7 +808,7 @@ function pHome() {
   $('#main').innerHTML = `
   <div class="row sp wrapx" style="margin-bottom:14px">${monthNav()}</div>
   ${newbie ? `<div class="note info" style="margin-bottom:14px"><div><b>Bắt đầu trong 2 bước:</b> (1) vào <b>Tài khoản</b> nhập số dư hiện tại của từng nguồn tiền; (2) bấm dấu <b>+</b> để ghi giao dịch đầu tiên.</div></div>` : ''}
-  ${due.map(d => `<div class="note ${d.days <= 2 ? 'over' : 'warn'}" style="margin-bottom:10px"><div><b>${esc(d.a.name)}</b> đến hạn thanh toán ${d.days === 0 ? 'hôm nay' : 'sau ' + d.days + ' ngày'} (${pad(d.due.getDate())}/${pad(d.due.getMonth() + 1)}), dư nợ <b>${money(d.owe)}</b>.</div><button class="btn sm" data-pay="${esc(d.a.id)}" style="margin-left:auto;flex:none">Thanh toán</button></div>`).join('')}
+  ${due.map(d => `<div class="note ${d.days <= 2 ? 'over' : 'warn'}" style="margin-bottom:10px"><div><b>${esc(d.a.name)}</b> đến hạn thanh toán ${d.days === 0 ? 'hôm nay' : 'sau ' + d.days + ' ngày'} (${pad(d.due.getDate())}/${pad(d.due.getMonth() + 1)}), ${d.st ? `cần trả <b>${money(d.pay)}</b> (các khoản trước ngày kết toán ${d.st.split('-').reverse().slice(0, 2).join('/')})${d.owe > d.pay ? `. Dư nợ hiện tại ${money(d.owe)}` : ''}` : `dư nợ <b>${money(d.owe)}</b>`}.</div><button class="btn sm" data-pay="${esc(d.a.id)}" data-amt="${d.pay}" style="margin-left:auto;flex:none">Thanh toán</button></div>`).join('')}
   ${hdue.map(x => `<div class="note ${x.kind === 'pay' && x.days <= 2 ? 'over' : 'warn'}" style="margin-bottom:10px"><div>🔁 ${x.kind === 'pay' ? `Trả hộ <b>${esc(x.a.name)}</b> ${x.days <= 0 ? 'đến hạn hôm nay' : 'đến hạn sau ' + x.days + ' ngày'} (ngày ${x.a.dueDay}): đã trả ${money(x.done)} / ${money(x.plan)}.` : `Chưa nhận đủ tiền của <b>${esc(x.a.name)}</b> tháng này: ${money(x.done)} / ${money(x.plan)}.`}</div><button class="btn sm" data-hold="${esc(x.a.id)}" data-kind="${x.kind}" data-amt="${x.plan - x.done}" style="margin-left:auto;flex:none">${x.kind === 'pay' ? 'Trả hộ' : 'Đã nhận'}</button></div>`).join('')}
   ${gdue.map(x => `<div class="note info" style="margin-bottom:10px"><div>🎯 Đến ngày trích <b>${esc(x.a.name)}</b>: tháng này đã bỏ vào ${money(x.done)} / ${money(x.plan)}.</div><button class="btn sm" data-goal="${esc(x.a.id)}" data-amt="${x.plan - x.done}" style="margin-left:auto;flex:none">Bỏ vào quỹ</button></div>`).join('')}
   <div class="grid g4">
@@ -975,7 +985,7 @@ function adjustForm(a, tx) {
 }
 
 /* =============== TRANG: TÀI KHOẢN =============== */
-function bindPay() { $$('#main [data-pay]').forEach(b => b.onclick = () => txForm(null, { pay: true, toAccountId: b.dataset.pay })); }
+function bindPay() { $$('#main [data-pay]').forEach(b => b.onclick = () => txForm(null, Object.assign({ pay: true, toAccountId: b.dataset.pay }, Number(b.dataset.amt) > 0 ? { amount: Number(b.dataset.amt) } : {}))); }
 function pAcc() {
   const bal = balances(), tot = totals(bal), allAcc = live('accounts').sort((a, b) => (a.archived || 0) - (b.archived || 0) || (a.sort || 0) - (b.sort || 0)), nArc = allAcc.filter(a => a.archived).length, accs = ui.showArc ? allAcc : allAcc.filter(a => !a.archived);
   $('#main').innerHTML = `<div class="grid g4" style="margin-bottom:14px">
@@ -1081,7 +1091,8 @@ function accForm(a, ptype) {
       <div class="row wrapx"><label class="f" style="flex:1 1 150px"><span id="lPlan">Trích vào quỹ mỗi tháng (₫)</span><input id="aPlan" inputmode="numeric" value="${fundPlan(a.id).amount ? fmt(fundPlan(a.id).amount) : ''}" placeholder="Không bắt buộc"></label><label class="f" style="flex:1 1 120px"><span id="lPlanDay">Nhắc vào ngày (1–31)</span><input id="aPlanDay" type="number" min="0" max="31" value="${fundPlan(a.id).day || ''}"></label></div>
       <label class="f" id="wHoldDue"><span>Ngày đến hạn trả ngân hàng hằng tháng (1–31)</span><input id="aHoldDue" type="number" min="0" max="31" value="${a.type === 'hold' && a.dueDay ? a.dueDay : ''}"></label></div>
     <div id="wDebt"><label class="f" id="wLim"><span>Hạn mức (₫), không bắt buộc</span><input id="aLim" inputmode="numeric" value="${a.limit ? fmt(a.limit) : ''}"></label>
-    <label class="f"><span>Ngày đến hạn thanh toán hằng tháng (1–31), để nhắc trước 7 ngày</span><input id="aDue" type="number" min="0" max="31" value="${a.dueDay || ''}"></label></div>
+    <label class="f"><span>Ngày đến hạn thanh toán hằng tháng (1–31), để nhắc trước 7 ngày</span><input id="aDue" type="number" min="0" max="31" value="${a.dueDay || ''}"></label>
+    <label class="f"><span>Ngày kết toán công nợ / chốt sao kê (1–31), không bắt buộc. Có ngày này thì chỉ nhắc trả các khoản giao dịch trước ngày kết toán</span><input id="aStmt" type="number" min="0" max="31" value="${stmtDay(a.id) || ''}"></label></div>
     <label class="f"><span>Ghi chú</span><input id="aNote" maxlength="200" value="${esc(a.note)}"></label>
     ${isNew ? '' : `<label class="row" style="margin-top:12px"><input type="checkbox" id="aArc" style="width:auto;min-height:0" ${a.archived ? 'checked' : ''}> Ẩn tài khoản này (không dùng nữa)</label>`}
     <div class="acts">${isNew ? '' : `<button class="btn dan" id="aDel">Xóa</button>`}<button class="btn pri" id="aSave">Lưu</button></div>`);
@@ -1093,6 +1104,7 @@ function accForm(a, ptype) {
     a.type = $('#aType').value; const d = ATYPES[a.type].g === 'debt', o = Math.abs(parseAmt($('#aOpen').value));
     a.opening = d ? -o : o; a.limit = d ? Math.abs(parseAmt($('#aLim').value)) : (a.type === 'goal' || a.type === 'hold') ? Math.abs(parseAmt($('#aTgt').value)) : 0;
     if (a.type === 'goal' || a.type === 'hold') { const pa = Math.abs(parseAmt($('#aPlan').value)), pd = Math.max(0, Math.min(31, Number($('#aPlanDay').value) || 0)), nv = pa ? pa + '|' + pd : ''; if (nv !== settingStr('fundplan:' + a.id)) put('settings', { id: 'fundplan:' + a.id, value: nv }); } a.dueDay = d ? Math.max(0, Math.min(31, Number($('#aDue').value) || 0)) : a.type === 'hold' ? Math.max(0, Math.min(31, Number($('#aHoldDue').value) || 0)) : 0;
+    if (d) { const sn = Math.max(0, Math.min(31, Number($('#aStmt').value) || 0)), sv = sn ? String(sn) : ''; if (sv !== (settingStr('stmt:' + a.id) || '')) put('settings', { id: 'stmt:' + a.id, value: sv }); }
     a.note = $('#aNote').value.trim(); if (!isNew) a.archived = $('#aArc').checked ? 1 : 0;
     put('accounts', a); closeModal(); render(); toast('Đã lưu');
   };
