@@ -1077,7 +1077,7 @@ async function xlsReport(fileName, sheets) {
   const box = { top: LN, left: LN, bottom: LN, right: LN }, MF = '#,##0;[Red]-#,##0;"–"';
   const today = new Date().toLocaleDateString('vi-VN');
   for (const sh of sheets) {
-    const n = sh.head.length, ws = wb.addWorksheet(sh.name.slice(0, 31), { views: [{ state: 'frozen', ySplit: 0 }], pageSetup: { paperSize: 9, orientation: n > 6 ? 'landscape' : 'portrait', fitToPage: true, fitToWidth: 1, fitToHeight: 0, margins: { left: 0.4, right: 0.4, top: 0.5, bottom: 0.5, header: 0.2, footer: 0.2 } } });
+    const n = sh.head.length, ws = wb.addWorksheet(sh.name.slice(0, 31), { views: [{ state: 'frozen', ySplit: 0 }], pageSetup: { paperSize: 9, orientation: n > 6 ? 'landscape' : 'portrait', fitToPage: true, fitToWidth: 1, fitToHeight: 0, horizontalCentered: true, margins: { left: 0.4, right: 0.4, top: 0.5, bottom: 0.5, header: 0.2, footer: 0.2 } } });
     ws.headerFooter.oddFooter = '&L&8Xuất từ MoneyFlow ngày ' + today + '&R&8Trang &P/&N';
     const cols = sh.cols || sh.head.map((_, i) => { const num = sh.rows.length && sh.rows.every(r => r[i] === '' || r[i] == null || typeof r[i] === 'number'); return { w: num ? 15 : Math.min(40, Math.max(12, ...sh.rows.slice(0, 200).map(r => String(r[i] == null ? '' : r[i]).length / 2 + 4), String(sh.head[i]).length + 4)), k: num ? 'm' : 't' }; });
     ws.columns = cols.map(c => ({ width: c.w }));
