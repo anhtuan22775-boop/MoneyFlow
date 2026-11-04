@@ -1110,13 +1110,15 @@ async function xlsReport(fileName, sheets) {
         c.font = { bold: bold || k === 'b', color: k === 'in' ? { argb: 'FF15803D' } : k === 'out' ? { argb: 'FFC2410C' } : undefined };
       }
     };
-    sh.rows.forEach((v, i) => { r++; const row = ws.getRow(r); row.values = v; style(row, i % 2 === 1); });
+    sh.rows.forEach((v, i) => { r++; const row = ws.getRow(r); row.values = v.map((x, j) => ((cols[j] || {}).k || 't') === 't' && typeof x === 'string' ? capWords(x) : x); style(row, i % 2 === 1); });
     if (!sh.rows.length) { r++; ws.mergeCells(r, 1, r, n); const c = ws.getCell(r, 1); c.value = 'Không có giao dịch'; c.alignment = { horizontal: 'center', vertical: 'middle' }; c.font = { italic: true, color: { argb: 'FF5D6D67' } }; ws.getRow(r).height = 24; }
     if (sh.total) { r++; const row = ws.getRow(r); row.values = sh.total; style(row, false, true); for (let i = 1; i <= n; i++) { const c = row.getCell(i); c.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: BR2 } }; c.border = Object.assign({}, box, { top: { style: 'double', color: { argb: BR } } }); } }
   }
   const buf = await wb.xlsx.writeBuffer();
   download(new Blob([buf], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' }), fileName + '.xlsx');
 }
+/* Viết hoa chữ cái đầu của mỗi từ (chỉ dùng trong file Excel) */
+const capWords = x => x.replace(/(^|[\s(\/–-])(\p{Ll})/gu, (m, a, c) => a + c.toLocaleUpperCase('vi'));
 const dmy = d => d ? d.split('-').reverse().join('/') : '';
 async function ledgerExcel(a, per, L, debt) {
   const rows = [['SỔ CHI TIẾT – ' + a.name.toUpperCase()], [per === 'all' ? 'Toàn bộ thời gian' : ymLabel(per)], [],
@@ -1129,7 +1131,7 @@ async function ledgerExcel(a, per, L, debt) {
     await xlsReport(name, [{ name: 'Sổ chi tiết', title: 'SỔ CHI TIẾT – ' + a.name.toUpperCase(), sub: (per === 'all' ? 'Toàn bộ thời gian' : ymLabel(per)) + ' · ' + ATYPES[a.type].n,
       info: [[debt ? 'Dư nợ đầu kỳ' : 'Số dư đầu kỳ', debt ? -L.start : L.start], [debt ? 'Giảm nợ (trả nợ)' : 'Tổng tiền vào', L.inn], [debt ? 'Tăng nợ (phát sinh)' : 'Tổng tiền ra', L.out], [debt ? 'Dư nợ cuối kỳ' : 'Số dư cuối kỳ', debt ? -L.end : L.end, 1]],
       head: ['Ngày', 'Nội dung', 'Đối ứng', debt ? 'Giảm nợ' : 'Vào', debt ? 'Tăng nợ' : 'Ra', debt ? 'Dư nợ' : 'Số dư', 'Ghi chú'],
-      rows: L.rows.map(r => { const [title, sub] = ledgerLabel(r.t, a); return [dmy(r.t.date), title, sub, r.d > 0 ? r.d : '', r.d < 0 ? -r.d : '', debt ? -r.bal : r.bal, r.t.note || '']; }),
+      rows: L.rows.map(r => { const [title, sub] = ledgerLabel(r.t, a); return [dmy(r.t.date), isBiz(r.t) ? accName(r.t.toAccountId) : title, sub, r.d > 0 ? r.d : '', r.d < 0 ? -r.d : '', debt ? -r.bal : r.bal, r.t.note || '']; }),
       total: ['Cộng', '', '', L.inn, L.out, debt ? -L.end : L.end, ''],
       cols: [{ w: 12, k: 'd' }, { w: 28, k: 't' }, { w: 18, k: 't' }, { w: 14, k: 'in' }, { w: 14, k: 'out' }, { w: 15, k: 'b' }, { w: 28, k: 't' }] }]);
     toast('Đã xuất sổ chi tiết');
