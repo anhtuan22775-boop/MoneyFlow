@@ -1067,6 +1067,57 @@ function ledgerRow(r, a, debt) {
   const [title, sub] = ledgerLabel(r.t, a), dd = r.t.date.split('-');
   return `<button class="item" data-tx="${esc(r.t.id)}"><span class="ic ledd"><b>${dd[2]}</b><small>T${Number(dd[1])}</small></span><span class="tx"><b>${esc(title)}</b><small>${esc(sub)}${r.t.note ? ' · ' + esc(r.t.note) : ''}</small></span><span class="am"><span class="${r.d >= 0 ? 'pos' : 'neg'}">${r.d >= 0 ? '+' : '−'}${fmt(Math.abs(r.d))}</span><small>${debt ? 'Dư nợ' : 'Số dư'} ${fmt(debt ? -r.bal : r.bal)}</small></span></button>`;
 }
+/* =============== XUẤT EXCEL DẠNG BẢNG BÁO CÁO (ExcelJS) =============== */
+/* sheets: [{ name, title, sub, info: [[nhãn, số]], head: [...], rows: [[...]], total: [...], cols: [{ w, k }] }]
+   k: 'd' ngày (giữa) · 't' chữ (xuống dòng) · 'm' tiền · 'in' tiền vào (xanh) · 'out' tiền ra (đỏ) · 'b' số dư (đậm) */
+async function xlsReport(fileName, sheets) {
+  if (!window.ExcelJS) await loadScript('https://cdnjs.cloudflare.com/ajax/libs/exceljs/4.4.0/exceljs.min.js');
+  const wb = new ExcelJS.Workbook(); wb.creator = 'MoneyFlow'; wb.created = new Date();
+  const BR = 'FF0E7C66', BR2 = 'FFE6F3EF', ZB = 'FFF7FAF9', LN = { style: 'thin', color: { argb: 'FFC9D6D1' } };
+  const box = { top: LN, left: LN, bottom: LN, right: LN }, MF = '#,##0;[Red]-#,##0;"–"';
+  const today = new Date().toLocaleDateString('vi-VN');
+  for (const sh of sheets) {
+    const n = sh.head.length, ws = wb.addWorksheet(sh.name.slice(0, 31), { views: [{ state: 'frozen', ySplit: 0 }], pageSetup: { paperSize: 9, orientation: n > 6 ? 'landscape' : 'portrait', fitToPage: true, fitToWidth: 1, fitToHeight: 0, margins: { left: 0.4, right: 0.4, top: 0.5, bottom: 0.5, header: 0.2, footer: 0.2 } } });
+    ws.headerFooter.oddFooter = '&L&8Xuất từ MoneyFlow ngày ' + today + '&R&8Trang &P/&N';
+    const cols = sh.cols || sh.head.map((_, i) => { const num = sh.rows.length && sh.rows.every(r => r[i] === '' || r[i] == null || typeof r[i] === 'number'); return { w: num ? 15 : Math.min(40, Math.max(12, ...sh.rows.slice(0, 200).map(r => String(r[i] == null ? '' : r[i]).length / 2 + 4), String(sh.head[i]).length + 4)), k: num ? 'm' : 't' }; });
+    ws.columns = cols.map(c => ({ width: c.w }));
+    const merge = (r, txt, font, fill, h, align) => { ws.mergeCells(r, 1, r, n); const c = ws.getCell(r, 1); c.value = txt; c.font = font; if (fill) c.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: fill } }; c.alignment = Object.assign({ vertical: 'middle', horizontal: 'left', indent: 1 }, align || {}); ws.getRow(r).height = h; };
+    let r = 1;
+    merge(r++, sh.title, { bold: true, size: 15, color: { argb: 'FFFFFFFF' } }, BR, 30);
+    if (sh.sub) merge(r++, sh.sub, { italic: true, size: 11, color: { argb: 'FF5D6D67' } }, BR2, 20);
+    if (sh.info && sh.info.length) {
+      r++;
+      sh.info.forEach(([lb, v, strong]) => {
+        ws.mergeCells(r, 1, r, n - 1); const a = ws.getCell(r, 1), b = ws.getCell(r, n);
+        a.value = lb; a.font = { bold: !!strong, size: 11 }; a.alignment = { vertical: 'middle', horizontal: 'left', indent: 1, wrapText: true };
+        b.value = v; b.numFmt = MF; b.font = { bold: true, size: 11 }; b.alignment = { vertical: 'middle', horizontal: 'right', indent: 1 };
+        [a, b].forEach(c => { c.border = box; c.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: strong ? BR2 : 'FFFFFFFF' } }; });
+        ws.getRow(r).height = 22; r++;
+      });
+    }
+    r++;
+    const hr = ws.getRow(r); hr.values = sh.head; hr.height = 32;
+    hr.eachCell(c => { c.font = { bold: true, color: { argb: 'FFFFFFFF' } }; c.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: BR } }; c.alignment = { vertical: 'middle', horizontal: 'center', wrapText: true }; c.border = box; });
+    ws.views = [{ state: 'frozen', ySplit: r }]; ws.pageSetup.printTitlesRow = r + ':' + r;
+    const style = (row, zebra, bold) => {
+      row.height = 32;
+      for (let i = 1; i <= n; i++) {
+        const c = row.getCell(i), k = (cols[i - 1] || {}).k || 't';
+        c.border = box; if (zebra) c.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: ZB } };
+        if (k === 'd') c.alignment = { vertical: 'middle', horizontal: 'center' };
+        else if (k === 't') c.alignment = { vertical: 'middle', horizontal: 'left', wrapText: true, indent: 1 };
+        else { c.alignment = { vertical: 'middle', horizontal: 'right', indent: 1 }; c.numFmt = MF; }
+        c.font = { bold: bold || k === 'b', color: k === 'in' ? { argb: 'FF15803D' } : k === 'out' ? { argb: 'FFC2410C' } : undefined };
+      }
+    };
+    sh.rows.forEach((v, i) => { r++; const row = ws.getRow(r); row.values = v; style(row, i % 2 === 1); });
+    if (!sh.rows.length) { r++; ws.mergeCells(r, 1, r, n); const c = ws.getCell(r, 1); c.value = 'Không có giao dịch'; c.alignment = { horizontal: 'center', vertical: 'middle' }; c.font = { italic: true, color: { argb: 'FF5D6D67' } }; ws.getRow(r).height = 24; }
+    if (sh.total) { r++; const row = ws.getRow(r); row.values = sh.total; style(row, false, true); for (let i = 1; i <= n; i++) { const c = row.getCell(i); c.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: BR2 } }; c.border = Object.assign({}, box, { top: { style: 'double', color: { argb: BR } } }); } }
+  }
+  const buf = await wb.xlsx.writeBuffer();
+  download(new Blob([buf], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' }), fileName + '.xlsx');
+}
+const dmy = d => d ? d.split('-').reverse().join('/') : '';
 async function ledgerExcel(a, per, L, debt) {
   const rows = [['SỔ CHI TIẾT – ' + a.name.toUpperCase()], [per === 'all' ? 'Toàn bộ thời gian' : ymLabel(per)], [],
     [debt ? 'Dư nợ đầu kỳ' : 'Số dư đầu kỳ', '', '', '', '', debt ? -L.start : L.start], [],
@@ -1075,9 +1126,13 @@ async function ledgerExcel(a, per, L, debt) {
     .concat([[], ['Cộng', '', '', L.inn, L.out, debt ? -L.end : L.end]]);
   const name = 'SoChiTiet_' + a.name.replace(/[^\p{L}\d]+/gu, '') + '_' + (per === 'all' ? 'ToanBo' : per);
   try {
-    if (!window.XLSX) await loadScript('https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js');
-    const ws = XLSX.utils.aoa_to_sheet(rows); ws['!cols'] = [{ wch: 12 }, { wch: 24 }, { wch: 22 }, { wch: 14 }, { wch: 14 }, { wch: 15 }, { wch: 36 }];
-    const wb = XLSX.utils.book_new(); XLSX.utils.book_append_sheet(wb, ws, 'Sổ chi tiết'); XLSX.writeFile(wb, name + '.xlsx'); toast('Đã xuất sổ chi tiết');
+    await xlsReport(name, [{ name: 'Sổ chi tiết', title: 'SỔ CHI TIẾT – ' + a.name.toUpperCase(), sub: (per === 'all' ? 'Toàn bộ thời gian' : ymLabel(per)) + ' · ' + ATYPES[a.type].n,
+      info: [[debt ? 'Dư nợ đầu kỳ' : 'Số dư đầu kỳ', debt ? -L.start : L.start], [debt ? 'Giảm nợ (trả nợ)' : 'Tổng tiền vào', L.inn], [debt ? 'Tăng nợ (phát sinh)' : 'Tổng tiền ra', L.out], [debt ? 'Dư nợ cuối kỳ' : 'Số dư cuối kỳ', debt ? -L.end : L.end, 1]],
+      head: ['Ngày', 'Nội dung', 'Đối ứng', debt ? 'Giảm nợ' : 'Vào', debt ? 'Tăng nợ' : 'Ra', debt ? 'Dư nợ' : 'Số dư', 'Ghi chú'],
+      rows: L.rows.map(r => { const [title, sub] = ledgerLabel(r.t, a); return [dmy(r.t.date), title, sub, r.d > 0 ? r.d : '', r.d < 0 ? -r.d : '', debt ? -r.bal : r.bal, r.t.note || '']; }),
+      total: ['Cộng', '', '', L.inn, L.out, debt ? -L.end : L.end, ''],
+      cols: [{ w: 12, k: 'd' }, { w: 28, k: 't' }, { w: 18, k: 't' }, { w: 14, k: 'in' }, { w: 14, k: 'out' }, { w: 15, k: 'b' }, { w: 28, k: 't' }] }]);
+    toast('Đã xuất sổ chi tiết');
   } catch (e) { download(new Blob(['\ufeff' + rows.map(x => x.map(v => '"' + String(v == null ? '' : v).replace(/"/g, '""') + '"').join(',')).join('\r\n')], { type: 'text/csv;charset=utf-8' }), name + '.csv'); toast('Đã xuất file CSV (mở được bằng Excel)'); }
 }
 function accForm(a, ptype) {
@@ -1239,9 +1294,14 @@ async function bizExcel(f, m, r) {
     ['Ngày', 'Loại', 'Số tiền', 'Tài khoản', 'Nội dung']].concat(r.items.map(t => [t.date.split('-').reverse().join('/'), t.type === 'bizin' ? w.in : t.type === 'bizout' ? w.out : w.ret, (t.type === 'bizin' ? 1 : -1) * (Number(t.amount) || 0), accName(t.accountId), t.note || '']));
   const name = (f.type === 'hold' ? 'DoiChieu_' : 'QuyetToan_') + f.name.replace(/[^\p{L}\d]+/gu, '') + '_' + m;
   try {
-    if (!window.XLSX) await loadScript('https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js');
-    const ws = XLSX.utils.aoa_to_sheet(rows); ws['!cols'] = [{ wch: 14 }, { wch: 20 }, { wch: 16 }, { wch: 18 }, { wch: 40 }];
-    const wb = XLSX.utils.book_new(); XLSX.utils.book_append_sheet(wb, ws, 'Quyết toán'); XLSX.writeFile(wb, name + '.xlsx'); toast('Đã xuất file quyết toán');
+    const amt = t => (t.type === 'bizin' ? 1 : -1) * (Number(t.amount) || 0);
+    await xlsReport(name, [{ name: w.title, title: w.xlsTitle + ' – ' + f.name.toUpperCase(), sub: ymLabel(m),
+      info: [['Số dư đầu tháng', r.start], [w.sumIn.slice(2), r.inn], [w.sumOut.slice(2), -r.out], [w.sumRet.slice(2), -r.ret], [r.end >= 0 ? 'Số dư cuối tháng (số dư khả dụng)' : 'Cuối tháng: ' + w.owe.toLowerCase(), r.end, 1]],
+      head: ['Ngày', 'Loại', 'Số tiền', 'Tài khoản', 'Nội dung'],
+      rows: r.items.map(t => [dmy(t.date), t.type === 'bizin' ? w.in : t.type === 'bizout' ? w.out : w.ret, amt(t), accName(t.accountId), t.note || '']),
+      total: ['Cộng', '', r.items.reduce((s, t) => s + amt(t), 0), '', ''],
+      cols: [{ w: 12, k: 'd' }, { w: 26, k: 't' }, { w: 15, k: 'm' }, { w: 16, k: 't' }, { w: 34, k: 't' }] }]);
+    toast('Đã xuất file ' + w.title.toLowerCase());
   } catch (e) { download(new Blob(['﻿' + rows.map(x => x.map(v => '"' + String(v == null ? '' : v).replace(/"/g, '""') + '"').join(',')).join('\r\n')], { type: 'text/csv;charset=utf-8' }), name + '.csv'); toast('Đã xuất file CSV (mở được bằng Excel)'); }
 }
 /** Thiết lập Quỹ công ty và chuyển dữ liệu cũ (tài khoản "Công ty", danh mục "Thanh toán công ty") sang đúng chỗ */
@@ -1391,10 +1451,13 @@ function exportTables(y) {
 async function exportExcel(y) {
   const t = exportTables(y), name = 'MoneyFlow_' + y;
   try {
-    if (!window.XLSX) await loadScript('https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js');
-    const wb = XLSX.utils.book_new();
-    for (const k in t) { const ws = XLSX.utils.aoa_to_sheet(t[k]); ws['!cols'] = t[k][0].map((_, i) => ({ wch: i === 0 ? 30 : 15 })); XLSX.utils.book_append_sheet(wb, ws, k); }
-    XLSX.writeFile(wb, name + '.xlsx'); toast('Đã xuất file Excel');
+    const C = { 'Tổng hợp năm': [{ w: 26, k: 't' }, { w: 13, k: 'm' }].concat(Array.from({ length: t['Tổng hợp năm'][0].length - 3 }, () => ({ w: 12, k: 'm' })), [{ w: 15, k: 'b' }]),
+      'Giao dịch': [{ w: 12, k: 'd' }, { w: 14, k: 't' }, { w: 14, k: 'm' }, { w: 18, k: 't' }, { w: 16, k: 't' }, { w: 16, k: 't' }, { w: 16, k: 't' }, { w: 30, k: 't' }],
+      'Tài khoản': [{ w: 24, k: 't' }, { w: 20, k: 't' }, { w: 16, k: 'b' }, { w: 14, k: 'm' }, { w: 12, k: 'd' }, { w: 28, k: 't' }],
+      'Ngân sách': [{ w: 26, k: 't' }, { w: 20, k: 't' }, { w: 18, k: 'm' }] };
+    await xlsReport(name, Object.keys(t).map(k => ({ name: k, title: 'MONEYFLOW – ' + k.toUpperCase() + (k === 'Tài khoản' || k === 'Ngân sách' ? '' : ' ' + y), sub: (displayName ? displayName() + ' · ' : '') + 'Xuất ngày ' + new Date().toLocaleDateString('vi-VN'),
+      head: t[k][0], rows: t[k].slice(1).map(r => k === 'Giao dịch' ? [dmy(r[0])].concat(r.slice(1)) : r), cols: C[k] })));
+    toast('Đã xuất file Excel');
   } catch (e) {
     const csv = Object.keys(t).map(k => k + '\r\n' + t[k].map(r => r.map(v => '"' + String(v).replace(/"/g, '""') + '"').join(',')).join('\r\n')).join('\r\n\r\n');
     download(new Blob(['﻿' + csv], { type: 'text/csv;charset=utf-8' }), name + '.csv'); toast('Không tải được bộ xuất Excel, đã xuất file CSV (mở được bằng Excel)');
