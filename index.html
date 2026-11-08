@@ -191,6 +191,7 @@ label.f>span{display:block;font-size:13px;font-weight:600;color:var(--muted);mar
 .seg button{border:0;background:none;border-radius:9px;padding:8px 2px;font-size:14px;white-space:nowrap;font-weight:700;color:var(--muted)}
 .seg button.on{background:var(--card);color:var(--ink);box-shadow:var(--shadow)}
 .amt{font-size:26px;font-weight:700;text-align:right;font-variant-numeric:tabular-nums}
+.hc{padding:9px 12px;border-radius:14px;max-width:88%;font-size:14.5px;line-height:1.5;white-space:normal}.hc.ai{background:var(--soft,#eef4f1);align-self:flex-start;border-bottom-left-radius:4px}.hc.me{background:var(--brand);color:#fff;align-self:flex-end;border-bottom-right-radius:4px}
 .invf input.amt,.invf input{font-size:16px;font-weight:600;min-height:42px;height:42px;padding:8px 12px}.invf input[type=date]{font-weight:400}.invf #iQ{text-align:right;font-variant-numeric:tabular-nums}.invf select{height:42px;min-height:42px}
 .quick{display:flex;gap:6px;margin-top:6px;flex-wrap:wrap}
 .quick button{border:1px solid var(--line);background:var(--card);border-radius:99px;padding:4px 10px;font-size:13px;color:var(--muted)}
@@ -496,6 +497,80 @@ function avatarPicker() {
 function settingStr(id) { const r = byId('settings', id.replace(/:/g, '.')) || byId('settings', id); return r && !r.deleted ? String(r.value || '') : ''; }
 /* Cài đặt cũ dùng dấu ':' bị máy chủ từ chối nên chưa đồng bộ: chép sang tên mới dùng '.' để gửi lên */
 function fixSettingKeys() { let n = 0; S.settings.slice().forEach(r => { if (/:/.test(r.id) && !r.deleted && !byId('settings', r.id.replace(/:/g, '.'))) { put('settings', { id: r.id, value: r.value }, true); n++; } }); if (n) save(); return n; }
+/* =============== TỰ KIỂM TRA SỔ (không dùng AI) =============== */
+function auditBook() {
+  const out = [], acc = id => byId('accounts', id), alive = id => { const a = acc(id); return a && !a.deleted; }, bal = balances(), td = today();
+  const txs = live('transactions'), d2 = d => d ? d.split('-').reverse().join('/') : '';
+  const desc = t => (t.type === 'transfer' ? 'Chuyển ' : t.type === 'income' ? 'Thu ' : t.type === 'expense' ? 'Chi ' : '') + money(t.amount) + ' · ' + d2(t.date) + (t.note ? ' · ' + t.note : '');
+  // 1. Giao dịch trỏ tới tài khoản đã xóa
+  txs.forEach(t => { [t.accountId, t.toAccountId].forEach(id => { if (id && !alive(id)) out.push({ lv: 'err', title: 'Giao dịch gắn với tài khoản đã xóa', text: desc(t) + '. Tiền vẫn đang bị trừ / cộng vào ' + (alive(t.accountId) ? accName(t.accountId) : accName(t.toAccountId)) + '.', tx: t.id, fix: 'Xem / xóa giao dịch' }); }); });
+  // 2. Tài khoản tiền bị âm: chỉ ra ngày đầu tiên bị âm
+  live('accounts').filter(a => ATYPES[a.type].g === 'money').forEach(a => {
+    const L = ledger(a, 'all'), first = L.rows.find(r => r.bal < 0);
+    if (first) out.push({ lv: (bal[a.id] || 0) < 0 ? 'err' : 'warn', title: a.name + ((bal[a.id] || 0) < 0 ? ' đang âm ' + money(bal[a.id]) : ' từng bị âm'), text: 'Lần đầu bị âm ngày ' + d2(first.t.date) + ' sau giao dịch: ' + desc(first.t) + '. Thường do thiếu một khoản tiền vào (lương, tiền người khác chuyển) hoặc chi nhầm tài khoản.', acc: a.id, fix: 'Xem sổ chi tiết' });
+  });
+  // 3. Giao dịch có thể bị nhập trùng
+  const seen = {}; txs.forEach(t => { const k = [t.date, t.type, t.amount, t.accountId, t.toAccountId, t.categoryId].join('|'); (seen[k] = seen[k] || []).push(t); });
+  Object.values(seen).filter(l => l.length > 1 && l[0].type !== 'adjust').forEach(l => out.push({ lv: 'warn', title: 'Có thể nhập trùng ' + l.length + ' lần', text: desc(l[0]) + ' · ' + accName(l[0].accountId) + '. Nếu thật sự chỉ có 1 giao dịch thì xóa bớt.', tx: l[1].id, fix: 'Xem giao dịch' }));
+  // 4. Ngày ở tương lai
+  txs.filter(t => t.date > td).forEach(t => out.push({ lv: 'warn', title: 'Giao dịch ghi ngày tương lai', text: desc(t) + '. Số dư hôm nay đã tính cả khoản này.', tx: t.id, fix: 'Sửa ngày' }));
+  // 5. Thiếu danh mục
+  txs.filter(t => (t.type === 'income' || t.type === 'expense') && (!t.categoryId || !byId('categories', t.categoryId) || byId('categories', t.categoryId).deleted)).forEach(t => out.push({ lv: 'info', title: 'Giao dịch chưa có danh mục', text: desc(t) + '. Báo cáo theo danh mục sẽ không tính khoản này.', tx: t.id, fix: 'Chọn danh mục' }));
+  // 6. Quỹ trả hộ / công ty còn thiếu
+  live('accounts').filter(a => a.type === 'hold' && (bal[a.id] || 0) < 0).forEach(a => out.push({ lv: 'info', title: a.name + ': đã trả hộ nhiều hơn tiền nhận ' + money(-bal[a.id]), text: 'Nếu người nhờ đã gửi tiền mà chưa ghi thì ghi thêm lần nhận, nếu không số dư ngân hàng / ví sẽ thấp hơn thực tế.', acc: a.id, fix: 'Xem quỹ' }));
+  // 7. Đầu tư bất thường
+  live('accounts').filter(isInv).forEach(a => { const I = invInfo(a, bal[a.id] || 0); if (I.qty < -1e-9) out.push({ lv: 'err', title: a.name + ': số lượng âm', text: 'Đã bán nhiều hơn số đang có. Kiểm tra các lần mua / bán.', acc: a.id, fix: 'Xem chi tiết' }); else if (I.qty <= 1e-9 && Math.abs(I.cost) > 0) out.push({ lv: 'warn', title: a.name + ': không còn số lượng nhưng vẫn còn vốn ' + money(I.cost), text: 'Có thể thiếu lần mua hoặc ghi sai lần bán.', acc: a.id, fix: 'Xem chi tiết' }); });
+  // 8. Nợ có hạn trả nhưng chưa có ngày kết toán
+  live('accounts').filter(a => (a.type === 'credit' || a.type === 'paylater') && a.dueDay && !stmtDay(a.id)).forEach(a => out.push({ lv: 'info', title: a.name + ' chưa có ngày kết toán', text: 'Lời nhắc đến hạn đang nhắc toàn bộ dư nợ. Nhập ngày kết toán để chỉ nhắc khoản của kỳ trước.', acc: a.id, edit: 1, fix: 'Sửa tài khoản' }));
+  // 9. Dữ liệu chưa gửi lên máy chủ
+  if (!demo && dirtyCount()) out.push({ lv: 'warn', title: dirtyCount() + ' thay đổi chưa đồng bộ', text: 'Máy khác sẽ chưa thấy các thay đổi này cho tới khi đồng bộ xong.', sync: 1, fix: 'Đồng bộ ngay' });
+  const rank = { err: 0, warn: 1, info: 2 }; return out.sort((x, y) => rank[x.lv] - rank[y.lv]);
+}
+function auditView() {
+  const L = auditBook(), ic = { err: '🔴', warn: '🟠', info: '🔵' };
+  modal(`<h2>🔍 Kiểm tra sổ<button class="x" data-x>×</button></h2>
+    ${L.length ? `<div class="muted" style="margin-bottom:10px">Tìm thấy <b>${L.filter(x => x.lv === 'err').length}</b> lỗi, <b>${L.filter(x => x.lv === 'warn').length}</b> cảnh báo, <b>${L.filter(x => x.lv === 'info').length}</b> gợi ý. Bấm nút bên phải để xem và sửa.</div>
+    <div class="list">${L.map((x, i) => `<div class="item" style="align-items:flex-start;gap:10px"><span style="font-size:18px;line-height:1.3">${ic[x.lv]}</span><div class="grow" style="min-width:0"><b>${esc(x.title)}</b><div class="muted" style="font-size:13px;white-space:normal">${esc(x.text)}</div></div><button class="btn sm" data-au="${i}" style="flex:none">${esc(x.fix)}</button></div>`).join('')}</div>`
+    : '<div class="empty" style="padding:24px">✅ Không thấy điểm bất thường nào trong sổ.<br><span class="muted" style="font-size:13px">Nếu số dư vẫn lệch với ngân hàng, mở tài khoản đó → Sổ chi tiết và so số dư từng dòng với lịch sử giao dịch của ngân hàng: dòng đầu tiên khác nhau là chỗ ghi sai.</span></div>'}
+    <div class="acts" style="margin-top:12px"><button class="btn" id="auAsk">💬 Hỏi trợ lý MoneyFlow</button></div>`);
+  $$('#modal [data-au]').forEach(b => b.onclick = () => { const x = L[b.dataset.au]; closeModal();
+    if (x.tx) txForm(byId('transactions', x.tx)); else if (x.sync) { sync(); toast('Đang đồng bộ…'); } else if (x.edit) accForm(byId('accounts', x.acc)); else if (x.acc) accDetail(byId('accounts', x.acc)); });
+  $('#auAsk').onclick = () => { closeModal(); helpChat(); };
+}
+
+/* =============== TRỢ LÝ AI: CHỈ HƯỚNG DẪN CÁCH DÙNG (không gửi số liệu) =============== */
+let helpGuide = '', helpLog = [];
+async function guideText() {
+  if (helpGuide) return helpGuide;
+  try { const h = await fetch('huong-dan.html').then(r => r.text()), d = new DOMParser().parseFromString(h, 'text/html'); d.querySelectorAll('nav,script,style,footer').forEach(x => x.remove()); helpGuide = d.querySelector('main').innerText.replace(/\n{3,}/g, '\n\n').slice(0, 18000); } catch (e) { helpGuide = ''; }
+  return helpGuide;
+}
+const mdLite = s => esc(s).replace(/\*\*(.+?)\*\*/g, '<b>$1</b>').replace(/^\s*[-*] /gm, '• ').replace(/\n/g, '<br>');
+function helpChat() {
+  const draw = () => { const box = $('#hcLog'); if (!box) return; box.innerHTML = (helpLog.length ? helpLog : [{ r: 'ai', t: 'Chào bạn! Mình hướng dẫn cách dùng MoneyFlow. Ví dụ: “Nhập mua vàng thế nào?”, “Trả thẻ tín dụng có bị tính chi 2 lần không?”, “Ngày kết toán là gì?”.\n\nMình không xem số liệu của bạn. Số dư bị lệch thì dùng nút **🔍 Kiểm tra sổ**.' }]).map(m => `<div class="hc ${m.r}">${mdLite(m.t)}</div>`).join(''); box.scrollTop = box.scrollHeight; };
+  modal(`<h2>💬 Trợ lý MoneyFlow<button class="x" data-x>×</button></h2>
+    <div id="hcLog" style="max-height:52vh;min-height:180px;overflow:auto;display:flex;flex-direction:column;gap:8px;padding:2px 0 8px"></div>
+    <div class="row" style="gap:8px;align-items:flex-end"><textarea id="hcQ" rows="2" maxlength="500" placeholder="Hỏi cách sử dụng…" style="flex:1;resize:none"></textarea><button class="btn pri" id="hcSend" style="flex:none">Gửi</button></div>
+    <div class="muted" id="hcLeft" style="font-size:12px;margin-top:6px">Chỉ gửi câu hỏi và trang hướng dẫn tới AI Gemini, không gửi số liệu của bạn. Tối đa 20 câu / ngày.</div>
+    <div class="row" style="gap:8px;margin-top:8px"><button class="btn sm" id="hcAudit">🔍 Kiểm tra sổ</button>${helpLog.length ? '<button class="btn sm" id="hcClear">Xóa cuộc trò chuyện</button>' : ''}</div>`);
+  draw();
+  $('#hcAudit').onclick = () => { closeModal(); auditView(); };
+  if ($('#hcClear')) $('#hcClear').onclick = () => { helpLog = []; helpChat(); };
+  const send = async () => {
+    const q = $('#hcQ').value.trim(); if (!q) return; if (demo) return toast('Bản dùng thử không hỏi được AI. Hãy đăng nhập.', true);
+    if (!navigator.onLine) return toast('Cần có mạng để hỏi trợ lý', true);
+    helpLog.push({ r: 'me', t: q }); helpLog.push({ r: 'ai', t: 'Đang trả lời…', wait: 1 }); $('#hcQ').value = ''; $('#hcSend').disabled = true; draw();
+    try {
+      const payload = { q, guide: await guideText(), history: helpLog.filter(m => !m.wait).slice(-7, -1).map(m => ({ r: m.r, t: m.t.slice(0, 600) })) };
+      let res; try { res = await api('askHelp', payload); } catch (e1) { if (!/503|quá tải/.test(e1.message)) throw e1; await new Promise(r => setTimeout(r, 4000)); res = await api('askHelp', payload); }
+      helpLog[helpLog.length - 1] = { r: 'ai', t: res.answer || 'Mình chưa trả lời được, bạn hỏi lại theo cách khác nhé.' };
+      if ($('#hcLeft') && res.left != null) $('#hcLeft').textContent = 'Không gửi số liệu của bạn. Còn ' + res.left + ' câu hỏi hôm nay.';
+    } catch (e) { helpLog[helpLog.length - 1] = { r: 'ai', t: (e.message || 'Có lỗi xảy ra') + (/Lệnh không hợp lệ/i.test(e.message) ? '\n\nQuản trị viên cần cập nhật Apps Script để bật trợ lý.' : '') }; }
+    if ($('#hcSend')) { $('#hcSend').disabled = false; draw(); }
+  };
+  $('#hcSend').onclick = send; $('#hcQ').onkeydown = e => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); send(); } };
+  if (window.innerWidth >= 900) $('#hcQ').focus();
+}
 /* =============== ĐẦU TƯ: CỔ PHIẾU, VÀNG, NHÀ ĐẤT ===============
    Mỗi mã / loại vàng / bất động sản là 1 tài khoản. Số dư tài khoản = VỐN còn lại.
    Số lượng mỗi lần mua / bán lưu ở cài đặt 'q:<mã giao dịch>', giá hiện tại ở 'px:<tài khoản>' = "giá|ngày".
@@ -1096,12 +1171,12 @@ function pAcc() {
     <div class="card stat"><small>Nợ phải trả</small><strong class="neg">${fmt(-tot.debt)}</strong><span>Thẻ, trả sau, khoản vay</span></div></div>
   ${fundMigrateInfo() ? `<div class="card" style="margin-bottom:12px"><div class="row sp wrapx"><div><b>🎯 Chuyển danh mục “Quỹ” sang Quỹ mục tiêu?</b><div class="muted" style="font-size:13px">Bỏ tiền vào / rút quỹ sẽ không còn tính là thu chi, và thấy được trong quỹ còn bao nhiêu.</div></div><button class="btn pri sm" id="goalSetup">Chuyển ngay</button></div></div>` : ''}
   ${live('accounts').some(a => a.type === 'company') ? '' : `<div class="card note-biz" style="margin-bottom:12px"><div class="row sp wrapx"><div><b>💼 Công ty ứng tiền trước cho anh chi?</b><div class="muted" style="font-size:13px">Tách tiền công ty khỏi thu chi cá nhân và theo dõi quyết toán hằng tháng.</div></div><button class="btn pri sm" id="bizSetup">Thiết lập Quỹ công ty</button></div></div>`}
-  <div class="row sp" style="margin-bottom:10px"><span class="muted" style="font-size:13.5px">Bấm ✏️ để sửa hoặc xóa; bấm vào tên để xem chi tiết</span><button class="btn pri sm" id="newAcc">+ Tài khoản</button></div>
+  <div class="row sp" style="margin-bottom:10px"><span class="muted" style="font-size:13.5px">Bấm ✏️ để sửa hoặc xóa; bấm vào tên để xem chi tiết</span><span class="row" style="gap:8px;flex:none"><button class="btn sm" id="auditBtn">🔍 Kiểm tra sổ</button><button class="btn pri sm" id="newAcc">+ Tài khoản</button></span></div>
   ${Object.keys(AGROUPS).map(g => { const l = accs.filter(a => ATYPES[a.type].g === g); if (!l.length && g !== 'debt' && g !== 'goal' && g !== 'hold' && g !== 'inv') return ''; return `<div class="card" style="margin-bottom:12px;padding:8px 12px"><div class="dayhead" style="padding-top:8px;align-items:center"><span>${AGROUPS[g]}${g === 'debt' ? ' <button class="btn sm" id="newLoan" style="margin-left:8px;text-transform:none;letter-spacing:0">+ Khoản vay</button>' : g === 'hold' ? ' <button class="btn sm" id="newHold" style="margin-left:8px;text-transform:none;letter-spacing:0">+ Trả hộ</button>' : g === 'goal' ? ' <button class="btn sm" id="newGoal" style="margin-left:8px;text-transform:none;letter-spacing:0">+ Quỹ</button>' : g === 'inv' ? ' <button class="btn sm" id="newInv" style="margin-left:8px;text-transform:none;letter-spacing:0">+ Đầu tư</button>' : ''}</span><span class="num ${g === 'debt' && tot[g] < 0 ? 'neg' : ''}">${g === 'company' || g === 'hold' ? '' : fmt(g === 'debt' ? -tot[g] : tot[g])}</span></div><div class="list">${l.map(a => {
     const b = bal[a.id] || 0, debt = g === 'debt', lim = Number(a.limit) || 0, IV = g === 'inv' ? invInfo(a, b) : null;
     return `<div class="irow ${(debt && b < 0) || isFund(a) ? 'haspay' : ''}"><button class="item" data-acc="${esc(a.id)}"><span class="ic">${accIcon(a)}</span><span class="tx"><b>${esc(a.name)}${a.archived ? ` <span class="pill ${a.type === 'loan' && b >= 0 ? 'ok' : ''}">${a.type === 'loan' && b >= 0 ? 'Đã trả xong' : 'Đã ẩn'}</span>` : ''}</b><small>${IV ? `${fmtQ(IV.qty)} ${IV.unit} · vốn ${fmt(IV.cost)}${IV.price ? '' : ' · chưa nhập giá'}` : g === 'hold' ? (lim ? `Còn nợ NH ${fmt(Math.max(0, lim - holdPaid(a)))}` : 'Giữ hộ / trả hộ') + (fundPlan(a.id).amount ? ' · ' + fmt(fundPlan(a.id).amount) + '/kỳ' : '') + (a.dueDay ? ' · hạn ngày ' + a.dueDay : '') : g === 'goal' ? (lim ? `Mục tiêu ${fmt(lim)} · đạt ${Math.round(Math.max(0, b) / lim * 100)}%` : 'Quỹ mục tiêu') + (fundPlan(a.id).amount ? ' · trích ' + fmt(fundPlan(a.id).amount) + '/tháng' : '') : esc(ATYPES[a.type].n)}${debt && lim ? ' · hạn mức ' + fmt(lim) + ' · còn dùng ' + fmt(lim + b) : ''}${debt && a.dueDay ? ' · hạn trả ngày ' + a.dueDay : ''}</small>${g === 'goal' && lim ? `<span class="bar" style="display:block;margin-top:5px;height:6px"><i style="width:${Math.min(100, Math.max(0, b / lim * 100))}%"></i></span>` : ''}</span><span class="am ${!IV && !debt && !isFund(a) && b < 0 ? 'neg' : ''}">${IV ? fmt(IV.mkt) : debt ? debtHtml(b) : isFund(a) ? fmt(Math.abs(b)) : fmt(b)}${IV ? `<small>${IV.price ? plHtml(IV.unreal, IV.pct) : 'theo giá vốn'}</small>` : debt ? (b > 0 ? '<small>trả dư</small>' : '<small>dư nợ</small>') : isFund(a) ? `<small>${fundShort(b, a)}</small>` : ''}</span></button>${isFund(a) ? `<button class="btn sm pri" data-biz="${esc(a.id)}">${FW(a).title}</button>` : ''}${debt && b < 0 ? `<button class="btn sm pri" data-pay="${esc(a.id)}">Thanh toán</button>` : ''}<button class="btn sm" data-edit="${esc(a.id)}" aria-label="Sửa ${esc(a.name)}" title="Sửa / xóa">✏️</button></div>`; }).join('') || (g === 'hold' ? '<div class="empty" style="padding:14px">Người khác nhờ anh trả nợ ngân hàng giúp? Bấm “+ Trả hộ”. Tiền họ chuyển và tiền anh trả hộ không tính vào thu chi của anh.</div>' : g === 'goal' ? '<div class="empty" style="padding:14px">Chưa có quỹ nào. Bấm “+ Quỹ” để tạo quỹ khẩn cấp, quỹ du lịch… Tiền bỏ vào hay rút ra quỹ không tính là thu chi.</div>' : g === 'inv' ? '<div class="empty" style="padding:14px;text-align:left">Đề xuất cho cổ phiếu, vàng, nhà đất</div>' : '<div class="empty" style="padding:14px">Chưa có khoản nợ nào. Bấm “+ Khoản vay” để thêm.</div>')}</div></div>`; }).join('')}
   ${nArc ? `<div style="text-align:center;margin-top:4px"><button class="link" id="togArc">${ui.showArc ? 'Ẩn bớt' : 'Xem ' + nArc + ' tài khoản đã ẩn / khoản vay đã trả xong'}</button></div>` : ''}`;
-  $('#newAcc').onclick = () => accForm(); if ($('#togArc')) $('#togArc').onclick = () => { ui.showArc = !ui.showArc; render(); }; $('#newLoan').onclick = () => accForm(null, 'loan'); $('#newGoal').onclick = () => accForm(null, 'goal'); $('#newHold').onclick = () => accForm(null, 'hold'); $('#newInv').onclick = () => accForm(null, 'stock'); $$('#main [data-edit]').forEach(b => b.onclick = () => accForm(byId('accounts', b.dataset.edit)));
+  $('#newAcc').onclick = () => accForm(); if ($('#togArc')) $('#togArc').onclick = () => { ui.showArc = !ui.showArc; render(); }; $('#newLoan').onclick = () => accForm(null, 'loan'); $('#newGoal').onclick = () => accForm(null, 'goal'); $('#newHold').onclick = () => accForm(null, 'hold'); $('#auditBtn').onclick = () => auditView(); $('#newInv').onclick = () => accForm(null, 'stock'); $$('#main [data-edit]').forEach(b => b.onclick = () => accForm(byId('accounts', b.dataset.edit)));
   $$('#main [data-acc]').forEach(b => b.onclick = () => accDetail(byId('accounts', b.dataset.acc))); bindPay();
   $$('#main [data-biz]').forEach(b => b.onclick = () => bizReport(byId('accounts', b.dataset.biz))); if ($('#bizSetup')) $('#bizSetup').onclick = bizSetup; if ($('#goalSetup')) $('#goalSetup').onclick = goalSetup;
 }
@@ -1630,7 +1705,7 @@ function pSet() {
     <div class="row" style="gap:14px;margin-bottom:6px">${avatarHtml(64)}<button class="btn sm" id="sAv">Đổi avatar</button></div>
     <label class="f" style="margin-top:0"><span>Tên hiển thị (hiện ở góc trái màn hình)</span><div class="row"><input id="sName" maxlength="40" value="${esc(displayName())}" placeholder="Nhập tên bạn muốn hiển thị"><button class="btn pri" id="sNameSave" style="flex:none">Lưu tên</button></div></label>
     <div class="row sp wrapx" style="margin-top:14px"><div><b>${esc(user.name || '')}</b><div class="muted">${demo ? 'Chế độ dùng thử: dữ liệu chỉ nằm trên máy này' : esc(user.email)}</div></div><button class="btn" id="sOut">${demo ? 'Thoát dùng thử' : 'Đăng xuất'}</button></div></div>
-  <div class="card"><div class="row sp wrapx" style="gap:10px"><div><h2 style="margin:0">Hướng dẫn sử dụng</h2><div class="muted">Sơ đồ web, cách ghi giao dịch, trả nợ, quỹ và hỏi đáp</div></div><a class="btn pri" href="huong-dan.html" style="text-decoration:none;flex:none">📖 Mở hướng dẫn</a></div></div>
+  <div class="card"><h2>Trợ giúp</h2><div class="muted" style="margin-bottom:10px">Hướng dẫn, tự kiểm tra sổ khi số dư bị lệch, hoặc hỏi trợ lý AI cách sử dụng.</div><div class="row wrapx" style="gap:8px"><a class="btn" href="huong-dan.html" style="text-decoration:none">📖 Mở hướng dẫn</a><button class="btn" id="sAudit">🔍 Kiểm tra sổ</button><button class="btn pri" id="sAsk">💬 Hỏi trợ lý AI</button></div></div>
   ${user.isAdmin ? `<div class="card"><h2>Quản lý người dùng <button class="btn sm" id="sAdm">Tải danh sách</button></h2><div id="admBox" class="muted">Duyệt hoặc khóa người dùng. Người mới đăng nhập lần đầu sẽ ở trạng thái “Chờ duyệt”.</div></div>` : ''}
   <div class="card"><h2>Danh mục thu chi <button class="btn sm" id="sCat">+ Danh mục</button></h2><div id="catBox"></div></div>
   <div class="card"><h2>Hạn mức chi theo danh mục <span class="pill" id="limTot"></span></h2>
@@ -1668,7 +1743,7 @@ function pSet() {
   $('#sBlur').onchange = e => { lsSet('stc_blur', e.target.value); applyBg(); };
   $$('#sBg button').forEach(b => b.onclick = async () => { if (b.dataset.bg === 'custom') return $('#sBgFile').click(); lsSet('stc_bg', b.dataset.bg || null); await applyBg(); render(); });
   $('#sBgFile').onchange = e => pickBgImage(e.target.files[0]);
-  $('#sExp').onclick = () => exportExcel(ui.year); $('#sCat').onclick = () => catForm();
+  $('#sExp').onclick = () => exportExcel(ui.year); $('#sCat').onclick = () => catForm(); $('#sAudit').onclick = () => auditView(); $('#sAsk').onclick = () => helpChat();
   if (demo) { $('#sDemo').onclick = async () => { sample(); render(); toast('Đã nạp dữ liệu mẫu'); }; $('#sWipe').onclick = async () => { if (await ask('Bạn chắc chắn muốn xóa toàn bộ dữ liệu dùng thử không?')) { S = blank(); seedLocal(); save(); render(); } }; }
   else $('#sFull').onclick = () => { toast('Đang tải lại…'); sync(true); };
   if (user.isAdmin) { $('#sAdm').onclick = adminLoad; if (ui.admin) adminDraw(); }
