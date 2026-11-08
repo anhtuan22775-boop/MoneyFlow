@@ -51,7 +51,7 @@ body.glass .card,body.glass #side,body.glass #tabs,body.glass .sheet,body.glass 
 body.glass .lbox{padding:28px 22px;border:1px solid var(--edge);border-radius:24px}
 body.glass .card{border-radius:20px}
 body.glass #top{background:color-mix(in srgb,var(--bg) 65%,transparent);-webkit-backdrop-filter:blur(16px) saturate(1.6);backdrop-filter:blur(16px) saturate(1.6)}
-body.glass .monthnav,body.glass .sync,body.glass .btn:not(.pri):not(.dan),body.glass input,body.glass select,body.glass .quick button{background:color-mix(in srgb,var(--card) 80%,transparent);border-color:var(--edge)}
+body.glass .monthnav,body.glass .btn:not(.pri):not(.dan),body.glass input,body.glass select,body.glass .quick button{background:color-mix(in srgb,var(--card) 80%,transparent);border-color:var(--edge)}
 body.glass .sheet{background:color-mix(in srgb,var(--card) 92%,transparent)}
 body.glass .seg button.on{background:color-mix(in srgb,var(--card) 80%,transparent)}
 body.glass #tabs{border-top-color:var(--edge)}
@@ -116,9 +116,21 @@ input:focus,select:focus{box-shadow:0 0 0 4px color-mix(in srgb,var(--brand) 18%
 #top h1{font-size:20px;flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 #main{padding:4px 22px 40px;max-width:1120px;width:100%;margin:0 auto}
 #tabs{display:none}
-.sync{display:flex;align-items:center;gap:7px;border:1px solid var(--line);background:var(--card);border-radius:99px;padding:6px 12px;font-size:13px;color:var(--muted)}
-.sync b{width:8px;height:8px;border-radius:50%;background:var(--muted)}
-.sync.ok b{background:var(--pos)}.sync.err b{background:var(--danger)}.sync.busy b{background:var(--warn);animation:pulse 1s infinite}
+.orbwrap{position:relative;flex:none}
+.orbbtn{position:relative;width:44px;height:44px;border-radius:50%;padding:0;border:0;background:transparent;cursor:pointer;display:block;filter:drop-shadow(0 0 5px rgba(167,139,250,.55));transition:transform .2s ease,filter .3s ease}
+.orbbtn:hover{transform:scale(1.07);filter:drop-shadow(0 0 9px rgba(103,232,249,.75))}.orbbtn svg{width:100%;height:100%;display:block;overflow:visible}
+.orbbtn .wv{transform-box:view-box;transform-origin:32px 32px}.orbbtn .ospin{opacity:0;transform-box:view-box;transform-origin:32px 32px;transition:opacity .3s}
+.orbbtn.busy{animation:orbGlow 1.8s ease-in-out infinite}.orbbtn.busy .ospin{opacity:1;animation:orbSpin 1.1s linear infinite}
+.orbbtn.busy .wv1{animation:orbSway 1.8s ease-in-out infinite}.orbbtn.busy .wv2{animation:orbSway 1.8s ease-in-out infinite reverse}.orbbtn.busy .wv3{animation:orbShine 1.8s ease-in-out infinite}
+.orbbtn.err::after,.orbbtn.off::after{content:'';position:absolute;right:1px;top:1px;width:11px;height:11px;border-radius:50%;background:var(--danger);border:2px solid var(--bg)}
+@keyframes orbGlow{0%,100%{filter:drop-shadow(0 0 4px rgba(192,38,211,.55))}50%{filter:drop-shadow(0 0 16px rgba(34,211,238,.95)) drop-shadow(0 0 4px rgba(240,171,252,.8))}}
+@keyframes orbSpin{to{transform:rotate(360deg)}}@keyframes orbSway{0%,100%{transform:translateX(0) scaleY(1)}50%{transform:translateX(2.5px) scaleY(1.14)}}@keyframes orbShine{0%,100%{opacity:.45}50%{opacity:1}}
+@media (prefers-reduced-motion:reduce){.orbbtn.busy,.orbbtn.busy *{animation:none!important}.orbbtn.busy{filter:drop-shadow(0 0 12px rgba(34,211,238,.9))}}
+.orbmenu{position:absolute;right:0;top:calc(100% + 8px);z-index:70;min-width:230px;background:var(--card);border:1px solid var(--line);border-radius:16px;box-shadow:0 14px 40px rgba(0,0,0,.18);padding:8px;display:none;flex-direction:column;gap:6px}
+.orbmenu::before{content:'';position:absolute;left:0;right:0;top:-10px;height:10px}.orbwrap.open .orbmenu{display:flex}@media (hover:hover){.orbwrap:hover .orbmenu{display:flex}}
+.orbmenu .btn{width:100%;justify-content:flex-start}
+.orbst{display:flex;align-items:center;gap:8px;border:0;background:transparent;font-size:12.5px;color:var(--muted);padding:4px 6px;cursor:pointer;text-align:left}.orbst b{width:8px;height:8px;border-radius:50%;background:var(--muted);flex:none}
+.orbst.ok b{background:var(--pos)}.orbst.err b,.orbst.off b{background:var(--danger)}.orbst.busy b{background:#22d3ee;animation:pulse 1s infinite}
 @keyframes pulse{50%{opacity:.3}}
 
 /* Thành phần */
@@ -252,7 +264,7 @@ tr:last-child td{border-bottom:0}
   .sheet{border-radius:20px 20px 0 0;max-width:none}
   #addDesk{display:none}
   .irow.haspay{flex-wrap:wrap;justify-content:flex-end;padding-bottom:10px}.irow.haspay .item{flex:1 1 100%}
-  .sync span{display:none}.sync{padding:9px}
+  .orbbtn{width:40px;height:40px}
 }
 @media print{#side,#top,#tabs,.noprint{display:none!important}#main{padding:0;max-width:none}.card{box-shadow:none;break-inside:avoid}body{background:#fff}}
 </style>
@@ -266,7 +278,27 @@ tr:last-child td{border-bottom:0}
     <header id="top">
       <h1 id="title"></h1>
       <button class="btn pri" id="addDesk">+ Tạo giao dịch</button>
-      <button class="sync" id="sync" title="Bấm để đồng bộ ngay"><b></b><span></span></button>
+      <div class="orbwrap" id="orbWrap"><button class="orbbtn" id="sync" title="Trợ lý MoneyFlow" aria-label="Trợ lý MoneyFlow">
+        <svg viewBox="0 0 64 64" aria-hidden="true"><defs>
+          <radialGradient id="obg" cx="50%" cy="48%" r="58%"><stop offset="0" stop-color="#2e1080"/><stop offset=".7" stop-color="#170650"/><stop offset="1" stop-color="#0b0330"/></radialGradient>
+          <linearGradient id="orim" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#f5d0fe"/><stop offset=".5" stop-color="#c4b5fd"/><stop offset="1" stop-color="#67e8f9"/></linearGradient>
+          <linearGradient id="owa" x1="0" y1="0" x2="1" y2="0"><stop offset="0" stop-color="#d946ef"/><stop offset="1" stop-color="#7c3aed"/></linearGradient>
+          <linearGradient id="owb" x1="0" y1="0" x2="1" y2="0"><stop offset="0" stop-color="#8b5cf6"/><stop offset="1" stop-color="#2563eb"/></linearGradient>
+          <linearGradient id="owc" x1="0" y1="0" x2="1" y2="0"><stop offset="0" stop-color="#a855f7"/><stop offset=".45" stop-color="#22d3ee"/><stop offset="1" stop-color="#3b82f6"/></linearGradient>
+          <linearGradient id="ohl" x1="0" y1="0" x2="1" y2="0"><stop offset="0" stop-color="#fff" stop-opacity=".2"/><stop offset=".55" stop-color="#fff"/><stop offset="1" stop-color="#e0e7ff" stop-opacity=".4"/></linearGradient>
+          <linearGradient id="ospin" x1="0" y1="0" x2="1" y2="0"><stop offset="0" stop-color="#fff" stop-opacity="0"/><stop offset="1" stop-color="#e0f2fe"/></linearGradient>
+        </defs>
+        <circle cx="32" cy="32" r="29" fill="url(#obg)"/>
+        <circle cx="32" cy="32" r="26.5" fill="none" stroke="url(#orim)" stroke-width="4" opacity=".12"/>
+        <g class="wv wv1"><path d="M10 33 C17 20 31 14 43 21 C48 24 52 21 55 19 C53 29 45 34 35 35 C25 36 16 35 10 33Z" fill="url(#owa)" opacity=".78"/></g>
+        <g class="wv wv2"><path d="M10 33 C21 26 33 24 44 27 C49 28 53 26 56 24 C53 34 44 40 33 40 C23 40 15 37 10 33Z" fill="url(#owb)" opacity=".7"/></g>
+        <g class="wv wv1"><path d="M10 33 C20 31 30 38 41 36 C47 35 51 31 54 29 C50 40 38 45 28 43 C19 41 13 37 10 33Z" fill="url(#owc)" opacity=".85"/></g>
+        <path class="wv wv3" d="M11 33 C21 30 30 37 40 34 C46 32 50 30 53 28" fill="none" stroke="url(#ohl)" stroke-width="2.4" stroke-linecap="round"/>
+        <circle cx="32" cy="32" r="29" fill="none" stroke="url(#orim)" stroke-width="2"/>
+        <circle class="ospin" cx="32" cy="32" r="29" fill="none" stroke="url(#ospin)" stroke-width="3.2" stroke-linecap="round" stroke-dasharray="46 140"/>
+        </svg></button>
+        <div class="orbmenu" id="orbMenu" role="menu"><button class="orbst" id="orbSync" title="Bấm để đồng bộ ngay"><b></b><span id="orbSt">Đang tải…</span></button>
+          <button class="btn" id="orbData">🔍 Trợ lý Data</button><button class="btn pri" id="orbAsk">💬 Hỏi trợ lý AI</button></div></div>
     </header>
     <main id="main"></main>
   </div>
@@ -528,7 +560,7 @@ function auditBook() {
 }
 function auditView() {
   const L = auditBook(), ic = { err: '🔴', warn: '🟠', info: '🔵' };
-  modal(`<h2>🔍 Kiểm tra sổ<button class="x" data-x>×</button></h2>
+  modal(`<h2>🔍 Trợ lý Data<button class="x" data-x>×</button></h2>
     ${L.length ? `<div class="muted" style="margin-bottom:10px">Tìm thấy <b>${L.filter(x => x.lv === 'err').length}</b> lỗi, <b>${L.filter(x => x.lv === 'warn').length}</b> cảnh báo, <b>${L.filter(x => x.lv === 'info').length}</b> gợi ý. Bấm nút bên phải để xem và sửa.</div>
     <div class="list">${L.map((x, i) => `<div class="item" style="align-items:flex-start;gap:10px"><span style="font-size:18px;line-height:1.3">${ic[x.lv]}</span><div class="grow" style="min-width:0"><b>${esc(x.title)}</b><div class="muted" style="font-size:13px;white-space:normal">${esc(x.text)}</div></div><button class="btn sm" data-au="${i}" style="flex:none">${esc(x.fix)}</button></div>`).join('')}</div>`
     : '<div class="empty" style="padding:24px">✅ Không thấy điểm bất thường nào trong sổ.<br><span class="muted" style="font-size:13px">Nếu số dư vẫn lệch với ngân hàng, mở tài khoản đó → Sổ chi tiết và so số dư từng dòng với lịch sử giao dịch của ngân hàng: dòng đầu tiên khác nhau là chỗ ghi sai.</span></div>'}
@@ -547,12 +579,12 @@ async function guideText() {
 }
 const mdLite = s => esc(s).replace(/\*\*(.+?)\*\*/g, '<b>$1</b>').replace(/^\s*[-*] /gm, '• ').replace(/\n/g, '<br>');
 function helpChat() {
-  const draw = () => { const box = $('#hcLog'); if (!box) return; box.innerHTML = (helpLog.length ? helpLog : [{ r: 'ai', t: 'Chào bạn! Mình hướng dẫn cách dùng MoneyFlow. Ví dụ: “Nhập mua vàng thế nào?”, “Trả thẻ tín dụng có bị tính chi 2 lần không?”, “Ngày kết toán là gì?”.\n\nMình không xem số liệu của bạn. Số dư bị lệch thì dùng nút **🔍 Kiểm tra sổ**.' }]).map(m => `<div class="hc ${m.r}">${mdLite(m.t)}</div>`).join(''); box.scrollTop = box.scrollHeight; };
+  const draw = () => { const box = $('#hcLog'); if (!box) return; box.innerHTML = (helpLog.length ? helpLog : [{ r: 'ai', t: 'Chào bạn! Mình hướng dẫn cách dùng MoneyFlow. Ví dụ: “Nhập mua vàng thế nào?”, “Trả thẻ tín dụng có bị tính chi 2 lần không?”, “Ngày kết toán là gì?”.\n\nMình không xem số liệu của bạn. Số dư bị lệch thì dùng **🔍 Trợ lý Data** (bấm quả cầu góc trên bên phải).' }]).map(m => `<div class="hc ${m.r}">${mdLite(m.t)}</div>`).join(''); box.scrollTop = box.scrollHeight; };
   modal(`<h2>💬 Trợ lý MoneyFlow<button class="x" data-x>×</button></h2>
     <div id="hcLog" style="max-height:52vh;min-height:180px;overflow:auto;display:flex;flex-direction:column;gap:8px;padding:2px 0 8px"></div>
     <div class="row" style="gap:8px;align-items:flex-end"><textarea id="hcQ" rows="2" maxlength="500" placeholder="Hỏi cách sử dụng…" style="flex:1;resize:none"></textarea><button class="btn pri" id="hcSend" style="flex:none">Gửi</button></div>
     <div class="muted" id="hcLeft" style="font-size:12px;margin-top:6px">Chỉ gửi câu hỏi và trang hướng dẫn tới AI Gemini, không gửi số liệu của bạn. Tối đa 20 câu / ngày.</div>
-    <div class="row" style="gap:8px;margin-top:8px"><button class="btn sm" id="hcAudit">🔍 Kiểm tra sổ</button>${helpLog.length ? '<button class="btn sm" id="hcClear">Xóa cuộc trò chuyện</button>' : ''}</div>`);
+    <div class="row" style="gap:8px;margin-top:8px"><button class="btn sm" id="hcAudit">🔍 Trợ lý Data</button>${helpLog.length ? '<button class="btn sm" id="hcClear">Xóa cuộc trò chuyện</button>' : ''}</div>`);
   draw();
   $('#hcAudit').onclick = () => { closeModal(); auditView(); };
   if ($('#hcClear')) $('#hcClear').onclick = () => { helpLog = []; helpChat(); };
@@ -755,7 +787,7 @@ async function api(action, payload) {
   return j;
 }
 let syncing = false, syncAgain = false, syncT;
-function setSync(st, txt) { const b = $('#sync'); b.className = 'sync ' + st; $('span', b).textContent = txt; }
+function setSync(st, txt) { const b = $('#sync'); if (!b) return; b.className = 'orbbtn ' + st; b.title = 'Trợ lý MoneyFlow · ' + txt; $('#orbSync').className = 'orbst ' + st; $('#orbSt').textContent = txt; }
 function dirtyCount() { let n = 0; TABLES.forEach(t => n += Object.keys(S.dirty[t] || {}).length); return n; }
 function scheduleSync() { if (demo) return; setSync(navigator.onLine ? 'busy' : 'err', navigator.onLine ? 'Chờ đồng bộ' : 'Ngoại tuyến'); clearTimeout(syncT); syncT = setTimeout(sync, 1500); }
 async function sync(full) {
@@ -877,7 +909,11 @@ function shell() {
     <button data-go="bud">${ICON.bud}Ngân sách</button><button data-go="more">${ICON.more}Thêm</button>`;
   $$('[data-go]').forEach(b => b.onclick = () => b.dataset.go === 'more' ? moreMenu() : go(b.dataset.go));
   $('#fab').onclick = $('#addDesk').onclick = () => txForm();
-  $('#sync').onclick = () => demo ? toast('Chế độ dùng thử: dữ liệu chỉ lưu trên máy này') : sync();
+  $('#sync').onclick = e => { e.stopPropagation(); $('#orbWrap').classList.toggle('open'); };
+  $('#orbSync').onclick = () => { $('#orbWrap').classList.remove('open'); demo ? toast('Chế độ dùng thử: dữ liệu chỉ lưu trên máy này') : (sync(), toast('Đang đồng bộ…')); };
+  $('#orbData').onclick = () => { $('#orbWrap').classList.remove('open'); auditView(); };
+  $('#orbAsk').onclick = () => { $('#orbWrap').classList.remove('open'); helpChat(); };
+  document.addEventListener('click', e => { const w = $('#orbWrap'); if (w && !w.contains(e.target)) w.classList.remove('open'); });
 }
 function moreMenu() {
   modal(`<h2>Thêm<button class="x" data-x>×</button></h2><div class="list">
@@ -1171,7 +1207,7 @@ function pAcc() {
     <div class="card stat"><small>Nợ phải trả</small><strong class="neg">${fmt(-tot.debt)}</strong><span>Thẻ, trả sau, khoản vay</span></div></div>
   ${fundMigrateInfo() ? `<div class="card" style="margin-bottom:12px"><div class="row sp wrapx"><div><b>🎯 Chuyển danh mục “Quỹ” sang Quỹ mục tiêu?</b><div class="muted" style="font-size:13px">Bỏ tiền vào / rút quỹ sẽ không còn tính là thu chi, và thấy được trong quỹ còn bao nhiêu.</div></div><button class="btn pri sm" id="goalSetup">Chuyển ngay</button></div></div>` : ''}
   ${live('accounts').some(a => a.type === 'company') ? '' : `<div class="card note-biz" style="margin-bottom:12px"><div class="row sp wrapx"><div><b>💼 Công ty ứng tiền trước cho anh chi?</b><div class="muted" style="font-size:13px">Tách tiền công ty khỏi thu chi cá nhân và theo dõi quyết toán hằng tháng.</div></div><button class="btn pri sm" id="bizSetup">Thiết lập Quỹ công ty</button></div></div>`}
-  <div class="row sp" style="margin-bottom:10px"><span class="muted" style="font-size:13.5px">Bấm ✏️ để sửa hoặc xóa; bấm vào tên để xem chi tiết</span><span class="row" style="gap:8px;flex:none"><button class="btn sm" id="auditBtn">🔍 Kiểm tra sổ</button><button class="btn pri sm" id="newAcc">+ Tài khoản</button></span></div>
+  <div class="row sp" style="margin-bottom:10px"><span class="muted" style="font-size:13.5px">Bấm ✏️ để sửa hoặc xóa; bấm vào tên để xem chi tiết</span><span class="row" style="gap:8px;flex:none"><button class="btn sm" id="auditBtn">🔍 Trợ lý Data</button><button class="btn pri sm" id="newAcc">+ Tài khoản</button></span></div>
   ${Object.keys(AGROUPS).map(g => { const l = accs.filter(a => ATYPES[a.type].g === g); if (!l.length && g !== 'debt' && g !== 'goal' && g !== 'hold' && g !== 'inv') return ''; return `<div class="card" style="margin-bottom:12px;padding:8px 12px"><div class="dayhead" style="padding-top:8px;align-items:center"><span>${AGROUPS[g]}${g === 'debt' ? ' <button class="btn sm" id="newLoan" style="margin-left:8px;text-transform:none;letter-spacing:0">+ Khoản vay</button>' : g === 'hold' ? ' <button class="btn sm" id="newHold" style="margin-left:8px;text-transform:none;letter-spacing:0">+ Trả hộ</button>' : g === 'goal' ? ' <button class="btn sm" id="newGoal" style="margin-left:8px;text-transform:none;letter-spacing:0">+ Quỹ</button>' : g === 'inv' ? ' <button class="btn sm" id="newInv" style="margin-left:8px;text-transform:none;letter-spacing:0">+ Đầu tư</button>' : ''}</span><span class="num ${g === 'debt' && tot[g] < 0 ? 'neg' : ''}">${g === 'company' || g === 'hold' ? '' : fmt(g === 'debt' ? -tot[g] : tot[g])}</span></div><div class="list">${l.map(a => {
     const b = bal[a.id] || 0, debt = g === 'debt', lim = Number(a.limit) || 0, IV = g === 'inv' ? invInfo(a, b) : null;
     return `<div class="irow ${(debt && b < 0) || isFund(a) ? 'haspay' : ''}"><button class="item" data-acc="${esc(a.id)}"><span class="ic">${accIcon(a)}</span><span class="tx"><b>${esc(a.name)}${a.archived ? ` <span class="pill ${a.type === 'loan' && b >= 0 ? 'ok' : ''}">${a.type === 'loan' && b >= 0 ? 'Đã trả xong' : 'Đã ẩn'}</span>` : ''}</b><small>${IV ? `${fmtQ(IV.qty)} ${IV.unit} · vốn ${fmt(IV.cost)}${IV.price ? '' : ' · chưa nhập giá'}` : g === 'hold' ? (lim ? `Còn nợ NH ${fmt(Math.max(0, lim - holdPaid(a)))}` : 'Giữ hộ / trả hộ') + (fundPlan(a.id).amount ? ' · ' + fmt(fundPlan(a.id).amount) + '/kỳ' : '') + (a.dueDay ? ' · hạn ngày ' + a.dueDay : '') : g === 'goal' ? (lim ? `Mục tiêu ${fmt(lim)} · đạt ${Math.round(Math.max(0, b) / lim * 100)}%` : 'Quỹ mục tiêu') + (fundPlan(a.id).amount ? ' · trích ' + fmt(fundPlan(a.id).amount) + '/tháng' : '') : esc(ATYPES[a.type].n)}${debt && lim ? ' · hạn mức ' + fmt(lim) + ' · còn dùng ' + fmt(lim + b) : ''}${debt && a.dueDay ? ' · hạn trả ngày ' + a.dueDay : ''}</small>${g === 'goal' && lim ? `<span class="bar" style="display:block;margin-top:5px;height:6px"><i style="width:${Math.min(100, Math.max(0, b / lim * 100))}%"></i></span>` : ''}</span><span class="am ${!IV && !debt && !isFund(a) && b < 0 ? 'neg' : ''}">${IV ? fmt(IV.mkt) : debt ? debtHtml(b) : isFund(a) ? fmt(Math.abs(b)) : fmt(b)}${IV ? `<small>${IV.price ? plHtml(IV.unreal, IV.pct) : 'theo giá vốn'}</small>` : debt ? (b > 0 ? '<small>trả dư</small>' : '<small>dư nợ</small>') : isFund(a) ? `<small>${fundShort(b, a)}</small>` : ''}</span></button>${isFund(a) ? `<button class="btn sm pri" data-biz="${esc(a.id)}">${FW(a).title}</button>` : ''}${debt && b < 0 ? `<button class="btn sm pri" data-pay="${esc(a.id)}">Thanh toán</button>` : ''}<button class="btn sm" data-edit="${esc(a.id)}" aria-label="Sửa ${esc(a.name)}" title="Sửa / xóa">✏️</button></div>`; }).join('') || (g === 'hold' ? '<div class="empty" style="padding:14px">Người khác nhờ anh trả nợ ngân hàng giúp? Bấm “+ Trả hộ”. Tiền họ chuyển và tiền anh trả hộ không tính vào thu chi của anh.</div>' : g === 'goal' ? '<div class="empty" style="padding:14px">Chưa có quỹ nào. Bấm “+ Quỹ” để tạo quỹ khẩn cấp, quỹ du lịch… Tiền bỏ vào hay rút ra quỹ không tính là thu chi.</div>' : g === 'inv' ? '<div class="empty" style="padding:14px;text-align:left">Đề xuất cho cổ phiếu, vàng, nhà đất</div>' : '<div class="empty" style="padding:14px">Chưa có khoản nợ nào. Bấm “+ Khoản vay” để thêm.</div>')}</div></div>`; }).join('')}
@@ -1705,7 +1741,7 @@ function pSet() {
     <div class="row" style="gap:14px;margin-bottom:6px">${avatarHtml(64)}<button class="btn sm" id="sAv">Đổi avatar</button></div>
     <label class="f" style="margin-top:0"><span>Tên hiển thị (hiện ở góc trái màn hình)</span><div class="row"><input id="sName" maxlength="40" value="${esc(displayName())}" placeholder="Nhập tên bạn muốn hiển thị"><button class="btn pri" id="sNameSave" style="flex:none">Lưu tên</button></div></label>
     <div class="row sp wrapx" style="margin-top:14px"><div><b>${esc(user.name || '')}</b><div class="muted">${demo ? 'Chế độ dùng thử: dữ liệu chỉ nằm trên máy này' : esc(user.email)}</div></div><button class="btn" id="sOut">${demo ? 'Thoát dùng thử' : 'Đăng xuất'}</button></div></div>
-  <div class="card"><h2>Trợ giúp</h2><div class="muted" style="margin-bottom:10px">Hướng dẫn, tự kiểm tra sổ khi số dư bị lệch, hoặc hỏi trợ lý AI cách sử dụng.</div><div class="row wrapx" style="gap:8px"><a class="btn" href="huong-dan.html" style="text-decoration:none">📖 Mở hướng dẫn</a><button class="btn" id="sAudit">🔍 Kiểm tra sổ</button><button class="btn pri" id="sAsk">💬 Hỏi trợ lý AI</button></div></div>
+  <div class="card"><h2>Trợ giúp</h2><div class="muted" style="margin-bottom:10px">Hướng dẫn, Trợ lý Data tự kiểm tra sổ khi số dư bị lệch, hoặc hỏi trợ lý AI cách sử dụng.</div><div class="row wrapx" style="gap:8px"><a class="btn" href="huong-dan.html" style="text-decoration:none">📖 Mở hướng dẫn</a><button class="btn" id="sAudit">🔍 Trợ lý Data</button><button class="btn pri" id="sAsk">💬 Hỏi trợ lý AI</button></div></div>
   ${user.isAdmin ? `<div class="card"><h2>Quản lý người dùng <button class="btn sm" id="sAdm">Tải danh sách</button></h2><div id="admBox" class="muted">Duyệt hoặc khóa người dùng. Người mới đăng nhập lần đầu sẽ ở trạng thái “Chờ duyệt”.</div></div>` : ''}
   <div class="card"><h2>Danh mục thu chi <button class="btn sm" id="sCat">+ Danh mục</button></h2><div id="catBox"></div></div>
   <div class="card"><h2>Hạn mức chi theo danh mục <span class="pill" id="limTot"></span></h2>
