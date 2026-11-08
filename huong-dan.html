@@ -60,7 +60,7 @@ footer{text-align:center}
     <li><b>Tính đúng tiền thật:</b> chuyển tiền giữa các tài khoản, trả nợ gốc, bỏ tiền vào quỹ hay tiền của công ty đều <b>không</b> bị tính là thu hay chi.</li>
   </ul>
   <nav class="toc">
-    <a href="#map">Sơ đồ web</a><a href="#start">Bắt đầu</a><a href="#tx">Ghi giao dịch</a><a href="#debt">Trả nợ</a><a href="#acc">Tài khoản</a><a href="#biz">Quỹ công ty</a><a href="#hold">Trả hộ</a><a href="#bud">Ngân sách</a><a href="#rep">Báo cáo</a><a href="#set">Cài đặt</a><a href="#faq">Hỏi đáp</a>
+    <a href="#map">Sơ đồ web</a><a href="#start">Bắt đầu</a><a href="#tx">Ghi giao dịch</a><a href="#debt">Trả nợ</a><a href="#acc">Tài khoản</a><a href="#inv">Đầu tư</a><a href="#biz">Quỹ công ty</a><a href="#hold">Trả hộ</a><a href="#bud">Ngân sách</a><a href="#rep">Báo cáo</a><a href="#set">Cài đặt</a><a href="#faq">Hỏi đáp</a>
   </nav>
 </div>
 
@@ -158,6 +158,24 @@ footer{text-align:center}
     <li>Bấm vào tên tài khoản để xem <b>Sổ chi tiết</b>: đầu kỳ, tiền vào, tiền ra, cuối kỳ theo tháng, xuất được Excel.</li>
     <li><b>Cập nhật số dư / dư nợ:</b> khi số trên web lệch với thực tế, nhập số đúng, web tự ghi phần chênh lệch.</li>
     <li>✏️ để sửa tên, loại, hạn mức, ngày đến hạn, hoặc ẩn tài khoản không dùng nữa.</li>
+  </ul>
+</section>
+
+<section class="card" id="inv">
+  <h2>Đầu tư: cổ phiếu, vàng, nhà đất</h2>
+  <p>Mỗi mã cổ phiếu, mỗi loại vàng, mỗi bất động sản là một dòng riêng trong nhóm <b>Đầu tư</b> (trang Tài khoản → <b>+ Đầu tư</b>).</p>
+  <div class="tbl"><table>
+    <tr><th>Việc</th><th>Cách làm</th><th>Tính vào thu chi?</th></tr>
+    <tr><td><b>Mua</b></td><td>Bấm tên mã → <b>Mua thêm</b>: số lượng, giá, phí, trả từ tài khoản nào</td><td>Không (tiền chuyển thành vốn đầu tư)</td></tr>
+    <tr><td><b>Bán</b></td><td><b>Bán</b>: số lượng, giá bán, phí thuế, nhận vào tài khoản nào. Web tự tính lãi / lỗ theo giá vốn trung bình</td><td>Chỉ phần <b>lãi</b> tính vào Thu (lỗ tính vào Chi)</td></tr>
+    <tr><td><b>Cổ tức tiền / tiền thuê nhà</b></td><td><b>Nhận cổ tức</b> hoặc <b>Nhận tiền cho thuê</b></td><td>Có, là Thu</td></tr>
+    <tr><td><b>Cổ phiếu thưởng, chia tách</b></td><td><b>Cổ phiếu thưởng / chia tách</b>: số cổ phiếu nhận thêm. Giá vốn trung bình tự giảm</td><td>Không</td></tr>
+    <tr><td><b>Cập nhật giá</b></td><td><b>Cập nhật giá</b> khi muốn xem lời / lỗ theo giá thị trường</td><td>Không (chỉ là lời / lỗ trên giấy)</td></tr>
+  </table></div>
+  <ul>
+    <li>Mỗi khoản đầu tư hiện: số lượng, vốn, giá vốn trung bình, giá trị thị trường, <b>lời / lỗ trên giấy</b> và <b>tiền đã thu về</b> (cổ tức, tiền thuê, lãi bán).</li>
+    <li>Đã có cổ phiếu / vàng từ trước: khi tạo, nhập luôn <b>số lượng đang có</b> và <b>tổng vốn đã bỏ ra</b>.</li>
+    <li>Tài sản ròng tính theo <b>giá thị trường</b> anh nhập gần nhất.</li>
   </ul>
 </section>
 
