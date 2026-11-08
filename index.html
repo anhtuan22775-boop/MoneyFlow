@@ -191,6 +191,7 @@ label.f>span{display:block;font-size:13px;font-weight:600;color:var(--muted);mar
 .seg button{border:0;background:none;border-radius:9px;padding:8px 2px;font-size:14px;white-space:nowrap;font-weight:700;color:var(--muted)}
 .seg button.on{background:var(--card);color:var(--ink);box-shadow:var(--shadow)}
 .amt{font-size:26px;font-weight:700;text-align:right;font-variant-numeric:tabular-nums}
+.invf input.amt,.invf input{font-size:16px;font-weight:600;min-height:42px;height:42px;padding:8px 12px}.invf input[type=date]{font-weight:400}.invf #iQ{text-align:right;font-variant-numeric:tabular-nums}.invf select{height:42px;min-height:42px}
 .quick{display:flex;gap:6px;margin-top:6px;flex-wrap:wrap}
 .quick button{border:1px solid var(--line);background:var(--card);border-radius:99px;padding:4px 10px;font-size:13px;color:var(--muted)}
 table{border-collapse:collapse;width:100%;font-size:13.5px}
@@ -425,6 +426,7 @@ function flush() { clearTimeout(saveT); if (stateKey) return idb.set(stateKey, J
 const live = t => S[t].filter(r => !r.deleted);
 const byId = (t, id) => S[t].find(r => r.id === id && !r.deleted);
 function put(t, rec, quiet) {
+  if (t === 'settings' && /:/.test(rec.id)) rec = Object.assign({}, rec, { id: rec.id.replace(/:/g, '.') }); // máy chủ chỉ nhận chữ, số, _ - * .
   rec.updatedAt = Date.now();
   const i = S[t].findIndex(r => r.id === rec.id);
   if (i >= 0) S[t][i] = rec; else S[t].push(rec);
@@ -491,7 +493,9 @@ function avatarPicker() {
     im.onerror = () => toast('Không đọc được ảnh này'); im.src = url;
   };
 }
-function settingStr(id) { const r = byId('settings', id); return r ? String(r.value || '') : ''; }
+function settingStr(id) { const r = byId('settings', id.replace(/:/g, '.')) || byId('settings', id); return r && !r.deleted ? String(r.value || '') : ''; }
+/* Cài đặt cũ dùng dấu ':' bị máy chủ từ chối nên chưa đồng bộ: chép sang tên mới dùng '.' để gửi lên */
+function fixSettingKeys() { let n = 0; S.settings.slice().forEach(r => { if (/:/.test(r.id) && !r.deleted && !byId('settings', r.id.replace(/:/g, '.'))) { put('settings', { id: r.id, value: r.value }, true); n++; } }); if (n) save(); return n; }
 /* =============== ĐẦU TƯ: CỔ PHIẾU, VÀNG, NHÀ ĐẤT ===============
    Mỗi mã / loại vàng / bất động sản là 1 tài khoản. Số dư tài khoản = VỐN còn lại.
    Số lượng mỗi lần mua / bán lưu ở cài đặt 'q:<mã giao dịch>', giá hiện tại ở 'px:<tài khoản>' = "giá|ngày".
@@ -510,6 +514,16 @@ function invInfo(a, bal) {
   const px = (settingStr('px:' + a.id) || '').split('|'), price = Number(px[0]) || 0;
   const mkt = price ? Math.round(Math.max(0, qty) * price) : cost, unreal = mkt - cost;
   return { qty, cost, price, pd: px[1] || '', mkt, unreal, pct: cost > 0 ? unreal / cost : 0, avg: qty > 0 ? cost / qty : 0, got, unit: IUNIT[a.type] || '' };
+}
+/* Không cho tiền mặt / ngân hàng / ví bị âm: trả về câu báo lỗi nếu giao dịch làm số dư dưới 0 */
+function noFunds(t, old) {
+  const bal = balances();
+  for (const id of [t.accountId, t.toAccountId]) {
+    const a = id && byId('accounts', id); if (!a || a.deleted || ATYPES[a.type].g !== 'money') continue;
+    const d = eff(t, id) - (old ? eff(old, id) : 0), cur = bal[id] || 0;
+    if (d < 0 && cur + d < 0) return 'Số dư không đủ: ' + a.name + ' chỉ còn ' + money(Math.max(0, cur + (old ? Math.max(0, -eff(old, id)) : 0)));
+  }
+  return '';
 }
 function ensureCat(id, name, kind, icon) {
   if (!byId('categories', id) || byId('categories', id).deleted) put('categories', { id, name, kind, group: kind === 'income' ? 'Thu nhập' : 'Thanh toán khác', sort: 999, archived: 0, icon });
@@ -535,14 +549,14 @@ function invForm(a, mode) {
     <label class="f"><span>Ngày</span><input id="iD" type="date" value="${today()}"></label>
     ${mode !== 'price' ? '<label class="f"><span>Ghi chú</span><input id="iN" maxlength="200"></label>' : ''}
     <div class="acts"><button class="btn pri" id="iSave">Lưu</button></div>`);
-  ['#iP', '#iF'].forEach(k => $(k) && bindAmt($(k)));
+  $('#modal .sheet').classList.add('invf'); ['#iP', '#iF'].forEach(k => $(k) && bindAmt($(k)));
   if (moneyAccs.length && $('#iAcc')) { const bk = moneyAccs.find(x => x.type === 'bank'); if (bk) $('#iAcc').value = bk.id; }
   const calc = () => {
     if (!$('#iSum')) return null;
     const q = parseQ($('#iQ').value), p = Math.abs(parseAmt($('#iP').value)), f = Math.abs(parseAmt($('#iF').value));
-    if (mode === 'buy') { const tot = re ? p + f : Math.round(q * p) + f; $('#iSum').innerHTML = `Tổng tiền trả: <b>${money(tot)}</b>` + (q > 0 && !re ? ` · giá vốn TB mới ≈ <b>${fmt(Math.round((I.cost + tot) / (I.qty + q)))}</b>/${u}` : ''); return { q, tot }; }
+    if (mode === 'buy') { const tot = re ? p + f : Math.round(q * p) + f; $('#iSum').innerHTML = `<div>Tổng tiền trả: <b>${money(tot)}</b> · Vốn luỹ kế <b>${money(I.cost + tot)}</b></div>`; return { q, tot }; }
     const qq = Math.min(q, I.qty), got = (re ? p : Math.round(qq * p)) - f, base = I.qty > 0 ? Math.round(I.cost * qq / I.qty) : 0, pl = got - base;
-    $('#iSum').innerHTML = q > I.qty + 1e-9 ? `<span class="neg">Chỉ đang có ${fmtQ(I.qty)} ${u}</span>` : `Nhận về <b>${money(got)}</b> · vốn của phần bán ${money(base)} · ${pl >= 0 ? 'lãi' : 'lỗ'} <b>${plHtml(pl)}</b>`;
+    $('#iSum').innerHTML = q > I.qty + 1e-9 ? `<div class="neg">Chỉ đang có ${fmtQ(I.qty)} ${u}</div>` : `<div>Nhận về <b>${money(got)}</b> · vốn của phần bán ${money(base)} · ${pl >= 0 ? 'lãi' : 'lỗ'} <b>${plHtml(pl)}</b></div>`;
     return { q: qq, got, base, pl, bad: q > I.qty + 1e-9 };
   };
   ['#iQ', '#iP', '#iF'].forEach(k => $(k) && $(k).addEventListener('input', calc)); calc();
@@ -558,7 +572,8 @@ function invForm(a, mode) {
       const r = calc(); if (!$('#iAcc').value) return toast('Chưa có tài khoản tiền');
       if (mode === 'buy') {
         if (!re && !r.q) return bad('#iQ', 'Nhập số lượng'); if (!r.tot) return bad('#iP', re ? 'Nhập số tiền' : 'Nhập giá');
-        const id = uid(); if (r.q) setQ(id, r.q); const old = $('#iAcc').value === '_old';
+        const old = $('#iAcc').value === '_old'; if (!old) { const nf = noFunds({ type: 'transfer', amount: r.tot, accountId: $('#iAcc').value, toAccountId: a.id }); if (nf) { toast(nf, true); return bad('#iP', nf); } }
+        const id = uid(); if (r.q) setQ(id, r.q);
         if (old) put('transactions', { id, date: d, type: 'adjust', amount: r.tot, accountId: a.id, toAccountId: '', categoryId: '', note: ('Có sẵn từ trước ' + (r.q ? fmtQ(r.q) + ' ' + u : '') + ' ' + note).trim(), createdAt: now });
         else put('transactions', { id, date: d, type: 'transfer', amount: r.tot, accountId: $('#iAcc').value, toAccountId: a.id, categoryId: '', note: ((re ? (r.q ? 'Mua ' + fmtQ(r.q) + ' ' + u : 'Chi thêm') : 'Mua ' + fmtQ(r.q) + ' ' + u + ' × ' + fmt(Math.abs(parseAmt($('#iP').value)))) + ' ' + note).trim(), createdAt: now });
         if (!re && !settingStr('px:' + a.id)) put('settings', { id: 'px:' + a.id, value: Math.abs(parseAmt($('#iP').value)) + '|' + d });
@@ -577,7 +592,7 @@ function invForm(a, mode) {
 }
 const displayName = () => settingStr('displayName').trim() || (user && user.name) || (demo ? 'Dùng thử' : '');
 function sideUser() { const el = $('#sideUser'); if (!el) return; const n = displayName(); el.innerHTML = avatarHtml(34) + `<span>${esc(n)}</span>`; }
-function setting(id, def) { const r = byId('settings', id); if (!r) return def; const n = Number(r.value); return isFinite(n) && r.value !== '' ? n : def; }
+function setting(id, def) { const r = byId('settings', id.replace(/:/g, '.')) || byId('settings', id); if (!r) return def; const n = Number(r.value); return isFinite(n) && r.value !== '' ? n : def; }
 function seedLocal() {
   SEED_CATEGORIES.forEach((c, i) => { put('categories', { id: c[0], name: c[1], kind: c[2], group: c[3], sort: i + 1, archived: 0, icon: c[5] }, true); if (c[4]) put('budgets', { id: 'b_' + c[0] + '_all', categoryId: c[0], month: '*', amount: c[4] }, true); });
   SEED_ACCOUNTS.forEach((a, i) => put('accounts', { id: a[0], name: a[1], type: a[2], opening: 0, limit: 0, dueDay: 0, note: '', archived: 0, sort: i + 1 }, true));
@@ -771,6 +786,7 @@ async function start() {
   S = blank();
   if (raw) { try { S = Object.assign(blank(), JSON.parse(raw)); } catch (e) {} }
   if (demo && !S.categories.length) { seedLocal(); save(); }
+  fixSettingKeys();
   $('#login').classList.add('hide'); $('#app').classList.remove('hide');
   shell(); go(location.hash.slice(1) in PAGES ? location.hash.slice(1) : 'home');
   if (demo) setSync('', 'Dùng thử'); else sync();
@@ -1043,6 +1059,7 @@ function txForm(tx, preset) {
     else if (t.type === 'transfer') { t.toAccountId = $('#tTo').value; t.categoryId = ''; if (!t.toAccountId) return bad('#tTo', 'Chọn tài khoản nhận'); if (t.toAccountId === t.accountId) return bad('#tTo', 'Hai tài khoản phải khác nhau'); }
     else if (fl.length && $('#tBiz').checked) { t.toAccountId = $('#tFund').value; if (t.type === 'income') t.type = 'bizin'; else t.type = wantRet ? 'bizret' : 'bizout'; if (t.type === 'bizin') t.categoryId = ''; }
     else { t.categoryId = $('#tCat').value; t.toAccountId = ''; if (!t.categoryId) return bad('#tCat', 'Chọn danh mục'); }
+    const nf = noFunds(t, isNew ? null : tx); if (nf) { toast(nf, true); return bad('#tAmt', nf); }
     put('transactions', t); lsSet('stc_lastacc', t.accountId); const hid = loanCheck([t.accountId, t.toAccountId, tx && tx.accountId, tx && tx.toAccountId]); closeModal(); ui.month = ymOf(t.date); render();
     if (t.type === 'expense') { const w = budgetAlerts(ymOf(t.date)).find(x => x.c.id === t.categoryId); toast(w ? (w.lv === 'over' ? '⚠ ' + w.c.name + ' đã vượt ngân sách ' + fmt(w.s - w.b) + ' ₫' : '⚠ ' + w.c.name + ' đã dùng ' + Math.round(w.p) + '% ngân sách') : 'Đã lưu'); } else if (isBiz(t)) { toast('Đã lưu. ' + accName(t.toAccountId) + ': ' + fundText(balances()[t.toAccountId] || 0, byId('accounts', t.toAccountId)) + ' ₫'); } else if (mode === 'pay') { const left = -(balances()[t.toAccountId] || 0); toast(left > 0 ? 'Đã thanh toán. ' + accName(t.toAccountId) + ' còn nợ ' + fmt(left) + ' ₫' : 'Đã thanh toán hết ' + accName(t.toAccountId) + (hid.length ? '. Khoản vay đã được ẩn, lịch sử thanh toán vẫn giữ.' : '')); } else toast(hid.length ? 'Đã trả hết ' + hid.join(', ') + '. Khoản vay đã được ẩn, lịch sử vẫn giữ.' : 'Đã lưu');
   };
@@ -1074,7 +1091,7 @@ function pAcc() {
   const bal = balances(), tot = totals(bal), allAcc = live('accounts').sort((a, b) => (a.archived || 0) - (b.archived || 0) || (a.sort || 0) - (b.sort || 0)), nArc = allAcc.filter(a => a.archived).length, accs = ui.showArc ? allAcc : allAcc.filter(a => !a.archived);
   $('#main').innerHTML = `<div class="grid g4" style="margin-bottom:14px">
     <div class="card stat"><small>Tài sản ròng</small><strong class="${tot.net < 0 ? 'neg' : ''}">${fmt(tot.net)}</strong><span>Tất cả tài sản − nợ</span></div>
-    <div class="card stat"><small>Tiền đang có</small><strong>${fmt(tot.money)}</strong><span>Tiền mặt, ngân hàng, ví</span></div>
+    <div class="card stat"><small>Tiền đang có</small><strong class="${tot.money < 0 ? 'neg' : ''}">${fmt(tot.money)}</strong><span>Tiền mặt, ngân hàng, ví</span></div>
     <div class="card stat"><small>Quỹ, tiết kiệm, đầu tư, tài sản</small><strong>${fmt(tot.goal + tot.inv + tot.save + tot.asset)}</strong><span>&nbsp;</span></div>
     <div class="card stat"><small>Nợ phải trả</small><strong class="neg">${fmt(-tot.debt)}</strong><span>Thẻ, trả sau, khoản vay</span></div></div>
   ${fundMigrateInfo() ? `<div class="card" style="margin-bottom:12px"><div class="row sp wrapx"><div><b>🎯 Chuyển danh mục “Quỹ” sang Quỹ mục tiêu?</b><div class="muted" style="font-size:13px">Bỏ tiền vào / rút quỹ sẽ không còn tính là thu chi, và thấy được trong quỹ còn bao nhiêu.</div></div><button class="btn pri sm" id="goalSetup">Chuyển ngay</button></div></div>` : ''}
@@ -1082,7 +1099,7 @@ function pAcc() {
   <div class="row sp" style="margin-bottom:10px"><span class="muted" style="font-size:13.5px">Bấm ✏️ để sửa hoặc xóa; bấm vào tên để xem chi tiết</span><button class="btn pri sm" id="newAcc">+ Tài khoản</button></div>
   ${Object.keys(AGROUPS).map(g => { const l = accs.filter(a => ATYPES[a.type].g === g); if (!l.length && g !== 'debt' && g !== 'goal' && g !== 'hold' && g !== 'inv') return ''; return `<div class="card" style="margin-bottom:12px;padding:8px 12px"><div class="dayhead" style="padding-top:8px;align-items:center"><span>${AGROUPS[g]}${g === 'debt' ? ' <button class="btn sm" id="newLoan" style="margin-left:8px;text-transform:none;letter-spacing:0">+ Khoản vay</button>' : g === 'hold' ? ' <button class="btn sm" id="newHold" style="margin-left:8px;text-transform:none;letter-spacing:0">+ Trả hộ</button>' : g === 'goal' ? ' <button class="btn sm" id="newGoal" style="margin-left:8px;text-transform:none;letter-spacing:0">+ Quỹ</button>' : g === 'inv' ? ' <button class="btn sm" id="newInv" style="margin-left:8px;text-transform:none;letter-spacing:0">+ Đầu tư</button>' : ''}</span><span class="num ${g === 'debt' && tot[g] < 0 ? 'neg' : ''}">${g === 'company' || g === 'hold' ? '' : fmt(g === 'debt' ? -tot[g] : tot[g])}</span></div><div class="list">${l.map(a => {
     const b = bal[a.id] || 0, debt = g === 'debt', lim = Number(a.limit) || 0, IV = g === 'inv' ? invInfo(a, b) : null;
-    return `<div class="irow ${(debt && b < 0) || isFund(a) ? 'haspay' : ''}"><button class="item" data-acc="${esc(a.id)}"><span class="ic">${accIcon(a)}</span><span class="tx"><b>${esc(a.name)}${a.archived ? ` <span class="pill ${a.type === 'loan' && b >= 0 ? 'ok' : ''}">${a.type === 'loan' && b >= 0 ? 'Đã trả xong' : 'Đã ẩn'}</span>` : ''}</b><small>${IV ? `${fmtQ(IV.qty)} ${IV.unit} · vốn ${fmt(IV.cost)}${IV.price ? '' : ' · chưa nhập giá'}` : g === 'hold' ? (lim ? `Còn nợ NH ${fmt(Math.max(0, lim - holdPaid(a)))}` : 'Giữ hộ / trả hộ') + (fundPlan(a.id).amount ? ' · ' + fmt(fundPlan(a.id).amount) + '/kỳ' : '') + (a.dueDay ? ' · hạn ngày ' + a.dueDay : '') : g === 'goal' ? (lim ? `Mục tiêu ${fmt(lim)} · đạt ${Math.round(Math.max(0, b) / lim * 100)}%` : 'Quỹ mục tiêu') + (fundPlan(a.id).amount ? ' · trích ' + fmt(fundPlan(a.id).amount) + '/tháng' : '') : esc(ATYPES[a.type].n)}${debt && lim ? ' · hạn mức ' + fmt(lim) + ' · còn dùng ' + fmt(lim + b) : ''}${debt && a.dueDay ? ' · hạn trả ngày ' + a.dueDay : ''}</small>${g === 'goal' && lim ? `<span class="bar" style="display:block;margin-top:5px;height:6px"><i style="width:${Math.min(100, Math.max(0, b / lim * 100))}%"></i></span>` : ''}</span><span class="am">${IV ? fmt(IV.mkt) : debt ? debtHtml(b) : fmt(Math.abs(b))}${IV ? `<small>${IV.price ? plHtml(IV.unreal, IV.pct) : 'theo giá vốn'}</small>` : debt ? (b > 0 ? '<small>trả dư</small>' : '<small>dư nợ</small>') : isFund(a) ? `<small>${fundShort(b, a)}</small>` : ''}</span></button>${isFund(a) ? `<button class="btn sm pri" data-biz="${esc(a.id)}">${FW(a).title}</button>` : ''}${debt && b < 0 ? `<button class="btn sm pri" data-pay="${esc(a.id)}">Thanh toán</button>` : ''}<button class="btn sm" data-edit="${esc(a.id)}" aria-label="Sửa ${esc(a.name)}" title="Sửa / xóa">✏️</button></div>`; }).join('') || (g === 'hold' ? '<div class="empty" style="padding:14px">Người khác nhờ anh trả nợ ngân hàng giúp? Bấm “+ Trả hộ”. Tiền họ chuyển và tiền anh trả hộ không tính vào thu chi của anh.</div>' : g === 'goal' ? '<div class="empty" style="padding:14px">Chưa có quỹ nào. Bấm “+ Quỹ” để tạo quỹ khẩn cấp, quỹ du lịch… Tiền bỏ vào hay rút ra quỹ không tính là thu chi.</div>' : g === 'inv' ? '<div class="empty" style="padding:14px;text-align:left">Đề xuất cho cổ phiếu, vàng, nhà đất</div>' : '<div class="empty" style="padding:14px">Chưa có khoản nợ nào. Bấm “+ Khoản vay” để thêm.</div>')}</div></div>`; }).join('')}
+    return `<div class="irow ${(debt && b < 0) || isFund(a) ? 'haspay' : ''}"><button class="item" data-acc="${esc(a.id)}"><span class="ic">${accIcon(a)}</span><span class="tx"><b>${esc(a.name)}${a.archived ? ` <span class="pill ${a.type === 'loan' && b >= 0 ? 'ok' : ''}">${a.type === 'loan' && b >= 0 ? 'Đã trả xong' : 'Đã ẩn'}</span>` : ''}</b><small>${IV ? `${fmtQ(IV.qty)} ${IV.unit} · vốn ${fmt(IV.cost)}${IV.price ? '' : ' · chưa nhập giá'}` : g === 'hold' ? (lim ? `Còn nợ NH ${fmt(Math.max(0, lim - holdPaid(a)))}` : 'Giữ hộ / trả hộ') + (fundPlan(a.id).amount ? ' · ' + fmt(fundPlan(a.id).amount) + '/kỳ' : '') + (a.dueDay ? ' · hạn ngày ' + a.dueDay : '') : g === 'goal' ? (lim ? `Mục tiêu ${fmt(lim)} · đạt ${Math.round(Math.max(0, b) / lim * 100)}%` : 'Quỹ mục tiêu') + (fundPlan(a.id).amount ? ' · trích ' + fmt(fundPlan(a.id).amount) + '/tháng' : '') : esc(ATYPES[a.type].n)}${debt && lim ? ' · hạn mức ' + fmt(lim) + ' · còn dùng ' + fmt(lim + b) : ''}${debt && a.dueDay ? ' · hạn trả ngày ' + a.dueDay : ''}</small>${g === 'goal' && lim ? `<span class="bar" style="display:block;margin-top:5px;height:6px"><i style="width:${Math.min(100, Math.max(0, b / lim * 100))}%"></i></span>` : ''}</span><span class="am ${!IV && !debt && !isFund(a) && b < 0 ? 'neg' : ''}">${IV ? fmt(IV.mkt) : debt ? debtHtml(b) : isFund(a) ? fmt(Math.abs(b)) : fmt(b)}${IV ? `<small>${IV.price ? plHtml(IV.unreal, IV.pct) : 'theo giá vốn'}</small>` : debt ? (b > 0 ? '<small>trả dư</small>' : '<small>dư nợ</small>') : isFund(a) ? `<small>${fundShort(b, a)}</small>` : ''}</span></button>${isFund(a) ? `<button class="btn sm pri" data-biz="${esc(a.id)}">${FW(a).title}</button>` : ''}${debt && b < 0 ? `<button class="btn sm pri" data-pay="${esc(a.id)}">Thanh toán</button>` : ''}<button class="btn sm" data-edit="${esc(a.id)}" aria-label="Sửa ${esc(a.name)}" title="Sửa / xóa">✏️</button></div>`; }).join('') || (g === 'hold' ? '<div class="empty" style="padding:14px">Người khác nhờ anh trả nợ ngân hàng giúp? Bấm “+ Trả hộ”. Tiền họ chuyển và tiền anh trả hộ không tính vào thu chi của anh.</div>' : g === 'goal' ? '<div class="empty" style="padding:14px">Chưa có quỹ nào. Bấm “+ Quỹ” để tạo quỹ khẩn cấp, quỹ du lịch… Tiền bỏ vào hay rút ra quỹ không tính là thu chi.</div>' : g === 'inv' ? '<div class="empty" style="padding:14px;text-align:left">Đề xuất cho cổ phiếu, vàng, nhà đất</div>' : '<div class="empty" style="padding:14px">Chưa có khoản nợ nào. Bấm “+ Khoản vay” để thêm.</div>')}</div></div>`; }).join('')}
   ${nArc ? `<div style="text-align:center;margin-top:4px"><button class="link" id="togArc">${ui.showArc ? 'Ẩn bớt' : 'Xem ' + nArc + ' tài khoản đã ẩn / khoản vay đã trả xong'}</button></div>` : ''}`;
   $('#newAcc').onclick = () => accForm(); if ($('#togArc')) $('#togArc').onclick = () => { ui.showArc = !ui.showArc; render(); }; $('#newLoan').onclick = () => accForm(null, 'loan'); $('#newGoal').onclick = () => accForm(null, 'goal'); $('#newHold').onclick = () => accForm(null, 'hold'); $('#newInv').onclick = () => accForm(null, 'stock'); $$('#main [data-edit]').forEach(b => b.onclick = () => accForm(byId('accounts', b.dataset.edit)));
   $$('#main [data-acc]').forEach(b => b.onclick = () => accDetail(byId('accounts', b.dataset.acc))); bindPay();
@@ -1265,7 +1282,12 @@ function accForm(a, ptype) {
     a.note = $('#aNote').value.trim(); if (!isNew) a.archived = $('#aArc').checked ? 1 : 0;
     put('accounts', a); closeModal(); render(); toast('Đã lưu');
   };
-  if (!isNew) $('#aDel').onclick = async () => { if (await ask(used ? 'Xóa “' + a.name + '”?\n\nCác giao dịch đã ghi với tài khoản này vẫn được giữ nguyên (tiền đã trả từ tài khoản khác không bị cộng lại). Số dư / dư nợ của riêng tài khoản này sẽ không còn tính vào tài sản.' : 'Xóa “' + a.name + '”?')) { remove('accounts', a.id); closeModal(); render(); toast('Đã xóa ' + a.name); } };
+  if (!isNew && isInv(a)) $('#aDel').onclick = async () => {
+    const txs = live('transactions').filter(t => t.accountId === a.id || t.toAccountId === a.id || settingStr('ofh:' + t.id) === a.id);
+    if (!(await ask('Xóa “' + a.name + '”?', txs.length ? 'Đồng thời xóa ' + txs.length + ' giao dịch mua / bán / cổ tức của khoản này. Tiền đã trừ hoặc cộng vào ngân hàng, ví sẽ được trả lại như chưa từng giao dịch.' : '', 'Xóa'))) return;
+    txs.forEach(t => remove('transactions', t.id)); remove('accounts', a.id); closeModal(); render(); toast('Đã xóa ' + a.name);
+  };
+  else if (!isNew) $('#aDel').onclick = async () => { if (await ask(used ? 'Xóa “' + a.name + '”?\n\nCác giao dịch đã ghi với tài khoản này vẫn được giữ nguyên (tiền đã trả từ tài khoản khác không bị cộng lại). Số dư / dư nợ của riêng tài khoản này sẽ không còn tính vào tài sản.' : 'Xóa “' + a.name + '”?')) { remove('accounts', a.id); closeModal(); render(); toast('Đã xóa ' + a.name); } };
 }
 
 /* =============== GIỮ HỘ / TRẢ HỘ =============== */
