@@ -124,8 +124,10 @@ input:focus,select:focus{box-shadow:0 0 0 4px color-mix(in srgb,var(--brand) 18%
 .orbbtn.busy .wv1{animation:orbSway 1.8s ease-in-out infinite}.orbbtn.busy .wv2{animation:orbSway 1.8s ease-in-out infinite reverse}.orbbtn.busy .wv3{animation:orbShine 1.8s ease-in-out infinite}
 .orbbtn.err::after,.orbbtn.off::after{content:'';position:absolute;right:1px;top:1px;width:11px;height:11px;border-radius:50%;background:var(--danger);border:2px solid var(--bg)}
 @keyframes orbGlow{0%,100%{filter:drop-shadow(0 0 4px rgba(192,38,211,.55))}50%{filter:drop-shadow(0 0 16px rgba(34,211,238,.95)) drop-shadow(0 0 4px rgba(240,171,252,.8))}}
+.orbbtn.busy .pt{animation:orbPetal 2.8s linear infinite}.orbbtn.busy .d1{animation-delay:-.7s}.orbbtn.busy .d2{animation-delay:-1.4s}.orbbtn.busy .d3{animation-delay:-2.1s}
+@keyframes orbPetal{0%,100%{stop-color:#d946ef}25%{stop-color:#8b5cf6}50%{stop-color:#22d3ee}75%{stop-color:#3b82f6}}
 @keyframes orbSpin{to{transform:rotate(360deg)}}@keyframes orbSway{0%,100%{transform:translateX(0) scaleY(1)}50%{transform:translateX(2.5px) scaleY(1.14)}}@keyframes orbShine{0%,100%{opacity:.45}50%{opacity:1}}
-@media (prefers-reduced-motion:reduce){.orbbtn.busy,.orbbtn.busy *{animation:none!important}.orbbtn.busy{filter:drop-shadow(0 0 12px rgba(34,211,238,.9))}}
+@media (prefers-reduced-motion:reduce){.orbbtn.busy{animation:orbGlow 1.8s ease-in-out infinite!important}.orbbtn.busy .pt{animation:orbPetal 2.8s linear infinite!important}.orbbtn.busy .d1{animation-delay:-.7s!important}.orbbtn.busy .d2{animation-delay:-1.4s!important}.orbbtn.busy .d3{animation-delay:-2.1s!important}.orbbtn.busy .wv3{animation:orbShine 1.8s ease-in-out infinite!important}.orbbtn.busy .ospin{opacity:.9}}
 .orbmenu{position:absolute;right:0;top:calc(100% + 8px);z-index:70;min-width:230px;background:var(--card);border:1px solid var(--line);border-radius:16px;box-shadow:0 14px 40px rgba(0,0,0,.18);padding:8px;display:none;flex-direction:column;gap:6px}
 .orbmenu::before{content:'';position:absolute;left:0;right:0;top:-10px;height:10px}.orbwrap.open .orbmenu{display:flex}@media (hover:hover){.orbwrap:hover .orbmenu{display:flex}}
 .orbmenu .btn{width:100%;justify-content:flex-start}
@@ -203,6 +205,8 @@ label.f>span{display:block;font-size:13px;font-weight:600;color:var(--muted);mar
 .seg button{border:0;background:none;border-radius:9px;padding:8px 2px;font-size:14px;white-space:nowrap;font-weight:700;color:var(--muted)}
 .seg button.on{background:var(--card);color:var(--ink);box-shadow:var(--shadow)}
 .amt{font-size:26px;font-weight:700;text-align:right;font-variant-numeric:tabular-nums}
+.item.hl{position:relative;background:color-mix(in srgb,#f59e0b 14%,var(--card));box-shadow:inset 0 0 0 2px rgba(245,158,11,.55);border-radius:12px;animation:hlGlow 1.6s ease-in-out 4}
+@keyframes hlGlow{0%,100%{box-shadow:inset 0 0 0 2px rgba(245,158,11,.45),0 0 0 0 rgba(245,158,11,0)}50%{box-shadow:inset 0 0 0 2px rgba(245,158,11,.9),0 0 14px 2px rgba(245,158,11,.35)}}
 .hc{padding:9px 12px;border-radius:14px;max-width:88%;font-size:14.5px;line-height:1.5;white-space:normal}.hc.ai{background:var(--soft,#eef4f1);align-self:flex-start;border-bottom-left-radius:4px}.hc.me{background:var(--brand);color:#fff;align-self:flex-end;border-bottom-right-radius:4px}
 .invf input.amt,.invf input{font-size:16px;font-weight:600;min-height:42px;height:42px;padding:8px 12px}.invf input[type=date]{font-weight:400}.invf #iQ{text-align:right;font-variant-numeric:tabular-nums}.invf select{height:42px;min-height:42px}
 .quick{display:flex;gap:6px;margin-top:6px;flex-wrap:wrap}
@@ -282,9 +286,9 @@ tr:last-child td{border-bottom:0}
         <svg viewBox="0 0 64 64" aria-hidden="true"><defs>
           <radialGradient id="obg" cx="50%" cy="48%" r="58%"><stop offset="0" stop-color="#2e1080"/><stop offset=".7" stop-color="#170650"/><stop offset="1" stop-color="#0b0330"/></radialGradient>
           <linearGradient id="orim" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#f5d0fe"/><stop offset=".5" stop-color="#c4b5fd"/><stop offset="1" stop-color="#67e8f9"/></linearGradient>
-          <linearGradient id="owa" x1="0" y1="0" x2="1" y2="0"><stop offset="0" stop-color="#d946ef"/><stop offset="1" stop-color="#7c3aed"/></linearGradient>
-          <linearGradient id="owb" x1="0" y1="0" x2="1" y2="0"><stop offset="0" stop-color="#8b5cf6"/><stop offset="1" stop-color="#2563eb"/></linearGradient>
-          <linearGradient id="owc" x1="0" y1="0" x2="1" y2="0"><stop offset="0" stop-color="#a855f7"/><stop offset=".45" stop-color="#22d3ee"/><stop offset="1" stop-color="#3b82f6"/></linearGradient>
+          <linearGradient id="owa" x1="0" y1="0" x2="1" y2="0"><stop class="pt d0" offset="0" stop-color="#d946ef"/><stop class="pt d1" offset="1" stop-color="#7c3aed"/></linearGradient>
+          <linearGradient id="owb" x1="0" y1="0" x2="1" y2="0"><stop class="pt d1" offset="0" stop-color="#8b5cf6"/><stop class="pt d2" offset="1" stop-color="#2563eb"/></linearGradient>
+          <linearGradient id="owc" x1="0" y1="0" x2="1" y2="0"><stop class="pt d2" offset="0" stop-color="#a855f7"/><stop class="pt d3" offset=".45" stop-color="#22d3ee"/><stop class="pt d0" offset="1" stop-color="#3b82f6"/></linearGradient>
           <linearGradient id="ohl" x1="0" y1="0" x2="1" y2="0"><stop offset="0" stop-color="#fff" stop-opacity=".2"/><stop offset=".55" stop-color="#fff"/><stop offset="1" stop-color="#e0e7ff" stop-opacity=".4"/></linearGradient>
           <linearGradient id="ospin" x1="0" y1="0" x2="1" y2="0"><stop offset="0" stop-color="#fff" stop-opacity="0"/><stop offset="1" stop-color="#e0f2fe"/></linearGradient>
         </defs>
@@ -297,8 +301,8 @@ tr:last-child td{border-bottom:0}
         <circle cx="32" cy="32" r="29" fill="none" stroke="url(#orim)" stroke-width="2"/>
         <circle class="ospin" cx="32" cy="32" r="29" fill="none" stroke="url(#ospin)" stroke-width="3.2" stroke-linecap="round" stroke-dasharray="46 140"/>
         </svg></button>
-        <div class="orbmenu" id="orbMenu" role="menu"><button class="orbst" id="orbSync" title="Bấm để đồng bộ ngay"><b></b><span id="orbSt">Đang tải…</span></button>
-          <button class="btn" id="orbData">🔍 Trợ lý Data</button><button class="btn pri" id="orbAsk">💬 Hỏi trợ lý AI</button></div></div>
+        <div class="orbmenu" id="orbMenu" role="menu"><button class="orbst hide" id="orbSync" title="Bấm để đồng bộ ngay"><b></b><span id="orbSt">Đang tải…</span></button>
+          <button class="btn" id="orbData">🔍 Trợ lý Data</button><button class="btn" id="orbAsk">💬 Hỏi trợ lý AI</button></div></div>
     </header>
     <main id="main"></main>
   </div>
@@ -535,38 +539,52 @@ function auditBook() {
   const txs = live('transactions'), d2 = d => d ? d.split('-').reverse().join('/') : '';
   const desc = t => (t.type === 'transfer' ? 'Chuyển ' : t.type === 'income' ? 'Thu ' : t.type === 'expense' ? 'Chi ' : '') + money(t.amount) + ' · ' + d2(t.date) + (t.note ? ' · ' + t.note : '');
   // 1. Giao dịch trỏ tới tài khoản đã xóa
-  txs.forEach(t => { [t.accountId, t.toAccountId].forEach(id => { if (id && !alive(id)) out.push({ lv: 'err', title: 'Giao dịch gắn với tài khoản đã xóa', text: desc(t) + '. Tiền vẫn đang bị trừ / cộng vào ' + (alive(t.accountId) ? accName(t.accountId) : accName(t.toAccountId)) + '.', tx: t.id, fix: 'Xem / xóa giao dịch' }); }); });
+  txs.forEach(t => { [t.accountId, t.toAccountId].forEach(id => { if (id && !alive(id)) out.push({ id: 'del|' + t.id, lv: 'err', title: 'Giao dịch gắn với tài khoản đã xóa', text: desc(t) + '. Tiền vẫn đang bị trừ / cộng vào ' + (alive(t.accountId) ? accName(t.accountId) : accName(t.toAccountId)) + '.', tx: t.id, fix: 'Xem giao dịch' }); }); });
   // 2. Tài khoản tiền bị âm: chỉ ra ngày đầu tiên bị âm
   live('accounts').filter(a => ATYPES[a.type].g === 'money').forEach(a => {
     const L = ledger(a, 'all'), first = L.rows.find(r => r.bal < 0);
-    if (first) out.push({ lv: (bal[a.id] || 0) < 0 ? 'err' : 'warn', title: a.name + ((bal[a.id] || 0) < 0 ? ' đang âm ' + money(bal[a.id]) : ' từng bị âm'), text: 'Lần đầu bị âm ngày ' + d2(first.t.date) + ' sau giao dịch: ' + desc(first.t) + '. Thường do thiếu một khoản tiền vào (lương, tiền người khác chuyển) hoặc chi nhầm tài khoản.', acc: a.id, fix: 'Xem sổ chi tiết' });
+    if (first) out.push({ id: 'neg|' + a.id + '|' + first.t.id, lv: (bal[a.id] || 0) < 0 ? 'err' : 'warn', title: a.name + ((bal[a.id] || 0) < 0 ? ' đang âm ' + money(bal[a.id]) : ' từng bị âm'), text: 'Lần đầu bị âm ngày ' + d2(first.t.date) + ' sau giao dịch: ' + desc(first.t) + '. Thường do thiếu một khoản tiền vào (lương, tiền người khác chuyển) hoặc chi nhầm tài khoản.', acc: a.id, fix: 'Xem sổ chi tiết' });
   });
   // 3. Giao dịch có thể bị nhập trùng
   const seen = {}; txs.forEach(t => { const k = [t.date, t.type, t.amount, t.accountId, t.toAccountId, t.categoryId].join('|'); (seen[k] = seen[k] || []).push(t); });
-  Object.values(seen).filter(l => l.length > 1 && l[0].type !== 'adjust').forEach(l => out.push({ lv: 'warn', title: 'Có thể nhập trùng ' + l.length + ' lần', text: desc(l[0]) + ' · ' + accName(l[0].accountId) + '. Nếu thật sự chỉ có 1 giao dịch thì xóa bớt.', tx: l[1].id, fix: 'Xem giao dịch' }));
+  Object.values(seen).filter(l => l.length > 1 && l[0].type !== 'adjust').forEach(l => out.push({ id: 'dup|' + l.map(t => t.id).sort().join(','), lv: 'warn', title: 'Có thể nhập trùng ' + l.length + ' lần', text: desc(l[0]) + ' · ' + accName(l[0].accountId) + '. Nếu thật sự chỉ có 1 giao dịch thì xóa bớt.', tx: l[1].id, txs: l.map(t => t.id), fix: 'Xem giao dịch' }));
   // 4. Ngày ở tương lai
-  txs.filter(t => t.date > td).forEach(t => out.push({ lv: 'warn', title: 'Giao dịch ghi ngày tương lai', text: desc(t) + '. Số dư hôm nay đã tính cả khoản này.', tx: t.id, fix: 'Sửa ngày' }));
+  txs.filter(t => t.date > td).forEach(t => out.push({ id: 'fut|' + t.id + '|' + t.date, lv: 'warn', title: 'Giao dịch ghi ngày tương lai', text: desc(t) + '. Số dư hôm nay đã tính cả khoản này.', tx: t.id, fix: 'Xem giao dịch' }));
   // 5. Thiếu danh mục
-  txs.filter(t => (t.type === 'income' || t.type === 'expense') && (!t.categoryId || !byId('categories', t.categoryId) || byId('categories', t.categoryId).deleted)).forEach(t => out.push({ lv: 'info', title: 'Giao dịch chưa có danh mục', text: desc(t) + '. Báo cáo theo danh mục sẽ không tính khoản này.', tx: t.id, fix: 'Chọn danh mục' }));
+  txs.filter(t => (t.type === 'income' || t.type === 'expense') && (!t.categoryId || !byId('categories', t.categoryId) || byId('categories', t.categoryId).deleted)).forEach(t => out.push({ id: 'cat|' + t.id, lv: 'info', title: 'Giao dịch chưa có danh mục', text: desc(t) + '. Báo cáo theo danh mục sẽ không tính khoản này.', tx: t.id, fix: 'Xem giao dịch' }));
   // 6. Quỹ trả hộ / công ty còn thiếu
-  live('accounts').filter(a => a.type === 'hold' && (bal[a.id] || 0) < 0).forEach(a => out.push({ lv: 'info', title: a.name + ': đã trả hộ nhiều hơn tiền nhận ' + money(-bal[a.id]), text: 'Nếu người nhờ đã gửi tiền mà chưa ghi thì ghi thêm lần nhận, nếu không số dư ngân hàng / ví sẽ thấp hơn thực tế.', acc: a.id, fix: 'Xem quỹ' }));
+  live('accounts').filter(a => a.type === 'hold' && (bal[a.id] || 0) < 0).forEach(a => out.push({ id: 'hold|' + a.id, lv: 'info', title: a.name + ': đã trả hộ nhiều hơn tiền nhận ' + money(-bal[a.id]), text: 'Nếu người nhờ đã gửi tiền mà chưa ghi thì ghi thêm lần nhận, nếu không số dư ngân hàng / ví sẽ thấp hơn thực tế.', acc: a.id, fix: 'Xem quỹ' }));
   // 7. Đầu tư bất thường
-  live('accounts').filter(isInv).forEach(a => { const I = invInfo(a, bal[a.id] || 0); if (I.qty < -1e-9) out.push({ lv: 'err', title: a.name + ': số lượng âm', text: 'Đã bán nhiều hơn số đang có. Kiểm tra các lần mua / bán.', acc: a.id, fix: 'Xem chi tiết' }); else if (I.qty <= 1e-9 && Math.abs(I.cost) > 0) out.push({ lv: 'warn', title: a.name + ': không còn số lượng nhưng vẫn còn vốn ' + money(I.cost), text: 'Có thể thiếu lần mua hoặc ghi sai lần bán.', acc: a.id, fix: 'Xem chi tiết' }); });
+  live('accounts').filter(isInv).forEach(a => { const I = invInfo(a, bal[a.id] || 0); if (I.qty < -1e-9) out.push({ id: 'invq|' + a.id, lv: 'err', title: a.name + ': số lượng âm', text: 'Đã bán nhiều hơn số đang có. Kiểm tra các lần mua / bán.', acc: a.id, fix: 'Xem chi tiết' }); else if (I.qty <= 1e-9 && Math.abs(I.cost) > 0) out.push({ id: 'invc|' + a.id, lv: 'warn', title: a.name + ': không còn số lượng nhưng vẫn còn vốn ' + money(I.cost), text: 'Có thể thiếu lần mua hoặc ghi sai lần bán.', acc: a.id, fix: 'Xem chi tiết' }); });
   // 8. Nợ có hạn trả nhưng chưa có ngày kết toán
-  live('accounts').filter(a => (a.type === 'credit' || a.type === 'paylater') && a.dueDay && !stmtDay(a.id)).forEach(a => out.push({ lv: 'info', title: a.name + ' chưa có ngày kết toán', text: 'Lời nhắc đến hạn đang nhắc toàn bộ dư nợ. Nhập ngày kết toán để chỉ nhắc khoản của kỳ trước.', acc: a.id, edit: 1, fix: 'Sửa tài khoản' }));
+  live('accounts').filter(a => (a.type === 'credit' || a.type === 'paylater') && a.dueDay && !stmtDay(a.id)).forEach(a => out.push({ id: 'stmt|' + a.id, lv: 'info', title: a.name + ' chưa có ngày kết toán', text: 'Lời nhắc đến hạn đang nhắc toàn bộ dư nợ. Nhập ngày kết toán để chỉ nhắc khoản của kỳ trước.', acc: a.id, edit: 1, fix: 'Sửa tài khoản' }));
   // 9. Dữ liệu chưa gửi lên máy chủ
-  if (!demo && dirtyCount()) out.push({ lv: 'warn', title: dirtyCount() + ' thay đổi chưa đồng bộ', text: 'Máy khác sẽ chưa thấy các thay đổi này cho tới khi đồng bộ xong.', sync: 1, fix: 'Đồng bộ ngay' });
-  const rank = { err: 0, warn: 1, info: 2 }; return out.sort((x, y) => rank[x.lv] - rank[y.lv]);
+  if (!demo && dirtyCount()) out.push({ id: '', lv: 'warn', title: dirtyCount() + ' thay đổi chưa đồng bộ', text: 'Máy khác sẽ chưa thấy các thay đổi này cho tới khi đồng bộ xong.', sync: 1, fix: 'Đồng bộ ngay' });
+  const rank = { err: 0, warn: 1, info: 2 }, ok = auditOk(); out.hidden = 0;
+  const res = out.filter(x => { if (x.lv !== 'err' && x.id && ok.includes(x.id)) { out.hidden++; return false; } return true; }).sort((x, y) => rank[x.lv] - rank[y.lv]);
+  res.hidden = out.hidden; return res;
 }
+/* Cảnh báo / gợi ý người dùng đã bấm "Đã kiểm tra" (lưu vào cài đặt để đồng bộ mọi máy). Lỗi không ẩn được. */
+/* Đưa người dùng tới Lịch sử giao dịch đúng tháng, làm sáng nhẹ các giao dịch bất thường */
+function showTx(ids) {
+  const ts = ids.map(id => byId('transactions', id)).filter(Boolean); if (!ts.length) return;
+  ui.month = ymOf(ts[0].date); ui.f = { type: '', acc: '', cat: '', q: '' }; ui.hl = ids; go('tx');
+  setTimeout(() => { let first = null; ids.forEach(id => { const el = document.querySelector(`#main [data-tx="${CSS.escape(id)}"]`); if (el) { el.classList.add('hl'); first = first || el; } }); if (first) first.scrollIntoView({ behavior: 'smooth', block: 'center' }); }, 80);
+}
+function auditOk() { try { return JSON.parse(settingStr('auditOk') || '[]'); } catch (e) { return []; } }
+function setAuditOk(list) { put('settings', { id: 'auditOk', value: JSON.stringify(list.slice(-300)) }); }
 function auditView() {
   const L = auditBook(), ic = { err: '🔴', warn: '🟠', info: '🔵' };
   modal(`<h2>🔍 Trợ lý Data<button class="x" data-x>×</button></h2>
-    ${L.length ? `<div class="muted" style="margin-bottom:10px">Tìm thấy <b>${L.filter(x => x.lv === 'err').length}</b> lỗi, <b>${L.filter(x => x.lv === 'warn').length}</b> cảnh báo, <b>${L.filter(x => x.lv === 'info').length}</b> gợi ý. Bấm nút bên phải để xem và sửa.</div>
-    <div class="list">${L.map((x, i) => `<div class="item" style="align-items:flex-start;gap:10px"><span style="font-size:18px;line-height:1.3">${ic[x.lv]}</span><div class="grow" style="min-width:0"><b>${esc(x.title)}</b><div class="muted" style="font-size:13px;white-space:normal">${esc(x.text)}</div></div><button class="btn sm" data-au="${i}" style="flex:none">${esc(x.fix)}</button></div>`).join('')}</div>`
-    : '<div class="empty" style="padding:24px">✅ Không thấy điểm bất thường nào trong sổ.<br><span class="muted" style="font-size:13px">Nếu số dư vẫn lệch với ngân hàng, mở tài khoản đó → Sổ chi tiết và so số dư từng dòng với lịch sử giao dịch của ngân hàng: dòng đầu tiên khác nhau là chỗ ghi sai.</span></div>'}
+    ${L.length ? `<div class="muted" style="margin-bottom:10px">Tìm thấy <b>${L.filter(x => x.lv === 'err').length}</b> lỗi, <b>${L.filter(x => x.lv === 'warn').length}</b> cảnh báo, <b>${L.filter(x => x.lv === 'info').length}</b> gợi ý. Lỗi tự biến mất khi đã sửa xong; cảnh báo và gợi ý bấm <b>✓ Đã kiểm tra</b> để ẩn.</div>
+    <div class="list">${L.map((x, i) => `<div class="item" style="align-items:flex-start;gap:10px"><span style="font-size:18px;line-height:1.3">${ic[x.lv]}</span><div class="grow" style="min-width:0"><b>${esc(x.title)}</b><div class="muted" style="font-size:13px;white-space:normal">${esc(x.text)}</div></div><div style="display:flex;flex-direction:column;gap:6px;flex:none;align-items:stretch"><button class="btn sm" data-au="${i}">${esc(x.fix)}</button>${x.lv !== 'err' && x.id ? `<button class="btn sm" data-ok="${i}" title="Ẩn mục này, không nhắc lại">✓ Đã kiểm tra</button>` : ''}</div></div>`).join('')}</div>`
+    : '<div class="empty" style="padding:24px">✅ Không có điểm bất thường nào cần xem.<br><span class="muted" style="font-size:13px">Nếu số dư vẫn lệch với ngân hàng, mở tài khoản đó → Sổ chi tiết và so số dư từng dòng với lịch sử giao dịch của ngân hàng: dòng đầu tiên khác nhau là chỗ ghi sai.</span></div>'}
+    ${L.hidden ? `<div class="muted" style="font-size:12.5px;margin-top:10px">Đã ẩn ${L.hidden} mục bạn đã kiểm tra. <a href="#" id="auReset">Hiện lại</a></div>` : ''}
     <div class="acts" style="margin-top:12px"><button class="btn" id="auAsk">💬 Hỏi trợ lý MoneyFlow</button></div>`);
+  $$('#modal [data-ok]').forEach(b => b.onclick = () => { const x = L[b.dataset.ok]; setAuditOk(auditOk().concat(x.id)); toast('Đã đánh dấu đã kiểm tra'); auditView(); });
+  if ($('#auReset')) $('#auReset').onclick = e => { e.preventDefault(); setAuditOk([]); auditView(); };
   $$('#modal [data-au]').forEach(b => b.onclick = () => { const x = L[b.dataset.au]; closeModal();
-    if (x.tx) txForm(byId('transactions', x.tx)); else if (x.sync) { sync(); toast('Đang đồng bộ…'); } else if (x.edit) accForm(byId('accounts', x.acc)); else if (x.acc) accDetail(byId('accounts', x.acc)); });
+    if (x.tx) showTx(x.txs || [x.tx]); else if (x.sync) { sync(); toast('Đang đồng bộ…'); } else if (x.edit) accForm(byId('accounts', x.acc)); else if (x.acc) accDetail(byId('accounts', x.acc)); });
   $('#auAsk').onclick = () => { closeModal(); helpChat(); };
 }
 
@@ -787,7 +805,7 @@ async function api(action, payload) {
   return j;
 }
 let syncing = false, syncAgain = false, syncT;
-function setSync(st, txt) { const b = $('#sync'); if (!b) return; b.className = 'orbbtn ' + st; b.title = 'Trợ lý MoneyFlow · ' + txt; $('#orbSync').className = 'orbst ' + st; $('#orbSt').textContent = txt; }
+function setSync(st, txt) { const b = $('#sync'); if (!b) return; b.className = 'orbbtn ' + st; b.title = 'Trợ lý MoneyFlow · ' + txt; $('#orbSync').className = 'orbst hide ' + st; $('#orbSt').textContent = txt; }
 function dirtyCount() { let n = 0; TABLES.forEach(t => n += Object.keys(S.dirty[t] || {}).length); return n; }
 function scheduleSync() { if (demo) return; setSync(navigator.onLine ? 'busy' : 'err', navigator.onLine ? 'Chờ đồng bộ' : 'Ngoại tuyến'); clearTimeout(syncT); syncT = setTimeout(sync, 1500); }
 async function sync(full) {
